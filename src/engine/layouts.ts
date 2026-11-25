@@ -7,7 +7,8 @@ import type { Slot } from "./board";
 type Layer = { at?: [number, number]; rows: string[] };
 export type LayoutDef = {
   id: string;
-  name: { en: string; zh: string };
+  /** In English: the game's language packs have it in the others. */
+  name: string;
   /** The level that first plays it, and opens it in Free play. */
   unlock: number;
   layers: Layer[];
@@ -17,7 +18,7 @@ export type Layout = LayoutDef & { slots: Slot[] };
 const DEFS: LayoutDef[] = [
   {
     id: "pebble",
-    name: { en: "Pebble", zh: "卵石" },
+    name: "Pebble",
     unlock: 1,
     layers: [
       { rows: ["####", "####", "####"] },
@@ -26,7 +27,7 @@ const DEFS: LayoutDef[] = [
   },
   {
     id: "stream",
-    name: { en: "Stream", zh: "小溪" },
+    name: "Stream",
     unlock: 2,
     layers: [
       { rows: [".######.", "########", ".######."] },
@@ -35,7 +36,7 @@ const DEFS: LayoutDef[] = [
   },
   {
     id: "lotus",
-    name: { en: "Lotus", zh: "莲花" },
+    name: "Lotus",
     unlock: 3,
     layers: [
       { rows: ["..##..", ".####.", "######", ".####.", "..##.."] },
@@ -47,7 +48,7 @@ const DEFS: LayoutDef[] = [
     // Three layers straight on top of each other: most of it is covered,
     // which a tray makes playable.
     id: "well",
-    name: { en: "Old Well", zh: "古井" },
+    name: "Old Well",
     unlock: 4,
     layers: [
       { rows: ["####", "####"] },
@@ -57,7 +58,7 @@ const DEFS: LayoutDef[] = [
   },
   {
     id: "bridge",
-    name: { en: "Stone Bridge", zh: "石桥" },
+    name: "Stone Bridge",
     unlock: 5,
     layers: [
       { rows: ["########", "##....##", "########"] },
@@ -67,7 +68,7 @@ const DEFS: LayoutDef[] = [
   },
   {
     id: "moongate",
-    name: { en: "Moon Gate", zh: "月门" },
+    name: "Moon Gate",
     unlock: 7,
     layers: [
       { rows: ["..####..", ".##..##.", "##....##", "##....##", ".##..##.", "..####.."] },
@@ -76,7 +77,7 @@ const DEFS: LayoutDef[] = [
   },
   {
     id: "tower",
-    name: { en: "Drum Tower", zh: "鼓楼" },
+    name: "Drum Tower",
     unlock: 8,
     layers: [
       { rows: ["####", "####", "####"] },
@@ -87,7 +88,7 @@ const DEFS: LayoutDef[] = [
   },
   {
     id: "lantern",
-    name: { en: "Lantern", zh: "灯笼" },
+    name: "Lantern",
     unlock: 9,
     layers: [
       { rows: [".####.", "######", "######", "######", ".####."] },
@@ -97,7 +98,7 @@ const DEFS: LayoutDef[] = [
   },
   {
     id: "butterfly",
-    name: { en: "Butterfly", zh: "蝴蝶" },
+    name: "Butterfly",
     unlock: 12,
     layers: [
       { rows: ["##....##", "###..###", "########", "###..###", "##....##"] },
@@ -107,7 +108,7 @@ const DEFS: LayoutDef[] = [
   },
   {
     id: "cloud",
-    name: { en: "Cloud", zh: "祥云" },
+    name: "Cloud",
     unlock: 15,
     layers: [
       { rows: ["..####..", ".######.", "########", "########", ".######.", "..####.."] },
@@ -118,7 +119,7 @@ const DEFS: LayoutDef[] = [
   },
   {
     id: "pagoda",
-    name: { en: "Pagoda", zh: "宝塔" },
+    name: "Pagoda",
     unlock: 18,
     layers: [
       { rows: ["########", "########", "########", "########"] },
@@ -129,7 +130,7 @@ const DEFS: LayoutDef[] = [
   },
   {
     id: "fan",
-    name: { en: "Folding Fan", zh: "折扇" },
+    name: "Folding Fan",
     unlock: 22,
     layers: [
       { rows: ["##.##.##.##", "##########.", ".#########.", "..#######..", "...#####...", "....###...."] },
@@ -139,7 +140,7 @@ const DEFS: LayoutDef[] = [
   },
   {
     id: "mountain",
-    name: { en: "Far Mountains", zh: "远山" },
+    name: "Far Mountains",
     unlock: 26,
     layers: [
       { rows: ["########", "########", "########", "########", "########"] },
@@ -150,7 +151,7 @@ const DEFS: LayoutDef[] = [
   },
   {
     id: "twinpeaks",
-    name: { en: "Twin Peaks", zh: "双峰" },
+    name: "Twin Peaks",
     unlock: 30,
     layers: [
       { rows: ["####..####", "####..####", "##########", "##########", "####..####", "####..####"] },
@@ -161,7 +162,7 @@ const DEFS: LayoutDef[] = [
   },
   {
     id: "courtyard",
-    name: { en: "Courtyard", zh: "庭院" },
+    name: "Courtyard",
     unlock: 35,
     layers: [
       { rows: ["##########", "##########", "##.####.##", "##.####.##", "##########", "##########"] },
@@ -171,7 +172,7 @@ const DEFS: LayoutDef[] = [
   },
   {
     id: "temple",
-    name: { en: "Mountain Temple", zh: "古寺" },
+    name: "Mountain Temple",
     unlock: 40,
     layers: [
       { rows: ["##########", "##########", "##########", "##########", "##########", "##########"] },

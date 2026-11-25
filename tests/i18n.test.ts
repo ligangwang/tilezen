@@ -22,7 +22,7 @@ test("game.json lists every language there is a pack for, with a title and descr
 });
 
 test("every string the game shows has a translation with the same placeholders", () => {
-  const shown = new Set<string>([...THEMES.map((t) => t.name), ...FACE_NAMES]);
+  const shown = new Set<string>([...THEMES.map((t) => t.name), ...FACE_NAMES, ...LAYOUTS.map((l) => l.name)]);
   for (const file of ["../src/game.tsx", "../src/board-view.tsx"]) {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
     for (const m of source.matchAll(/\bt\(\s*"((?:[^"\\]|\\.)+)"/g)) shown.add(m[1]);
@@ -37,11 +37,16 @@ test("every string the game shows has a translation with the same placeholders",
   }
 });
 
-test("every layout has a name in both languages", () => {
-  for (const l of LAYOUTS) {
-    assert.ok(l.name.en.trim());
-    assert.match(l.name.zh, /[一-鿿]/);
-  }
+test("the game speaks every language dingn has", () => {
+  assert.deepEqual([...LANGUAGES].sort(), ["en", "es", "id", "ja", "ko", "pt-BR", "zh-CN"]);
+  // game.json names the game, describes it and titles each badge in all of
+  // them (Chinese under "zh", as dingn's listings have it).
+  const fields = LANGUAGES.map((l) => (l === "zh-CN" ? "zh" : l));
+  for (const text of [game.title, game.description, ...game.badges.map((b) => b.title)] as Record<string, string>[])
+    assert.deepEqual(Object.keys(text).sort(), [...fields].sort());
+  for (const f of fields) assert.ok(game.description[f as "en"].length <= 300, `${f} description is too long`);
+  // A layout's name is not left in English.
+  for (const l of LAYOUTS) for (const locale of Object.keys(PACKS)) assert.ok(translate(l.name, locale), `${locale}: ${l.name}`);
 });
 
 test("translate fills patterns and falls back to English", () => {
@@ -49,5 +54,8 @@ test("translate fills patterns and falls back to English", () => {
   assert.equal(translate("Level 12", "zh-CN"), "第 12 关");
   assert.equal(translate("Dots 3", "zh-CN"), "3 筒");
   assert.equal(translate("Hint", "en"), "Hint");
-  assert.equal(translate("Hint", "es"), "Hint");
+  assert.equal(translate("Hint", "es"), "Pista");
+  assert.equal(translate("Level 12", "ja"), "レベル 12");
+  assert.equal(translate("Place 2 of 9", "ko"), "9명 중 2위");
+  assert.equal(translate("Hint", "fr"), "Hint");
 });
