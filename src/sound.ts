@@ -1,6 +1,8 @@
-// Calm music and soft sound effects, all made in the browser with Web Audio:
+// Calm music and sound effects, all made in the browser with Web Audio:
 // slow pentatonic chords under a few drifting bell notes, through a long
-// reverb. Nothing is loaded, so the game ships no audio files.
+// reverb, and the clack of tiles, built from short bursts of noise and
+// struck tones. Nothing is loaded, so the game ships no audio files, and
+// nothing speaks.
 
 type Ctx = { ac: AudioContext; out: GainNode; music: GainNode; sfx: GainNode; reverb: ConvolverNode };
 let ctx: Ctx | null = null;
@@ -143,7 +145,75 @@ export const setSound = (on: boolean) => {
   soundOn = on;
 };
 
-export type Sfx = "select" | "match" | "blocked" | "shuffle" | "hint" | "win";
+/** A second of hiss, the raw stuff of every knock and rustle. */
+let hiss: AudioBuffer | null = null;
+function noise(
+  dest: AudioNode,
+  when: number,
+  { freq, q = 1, attack = 0.001, decay, gain, sweep = 1 }: { freq: number; q?: number; attack?: number; decay: number; gain: number; sweep?: number },
+) {
+  const c = ctx!;
+  if (!hiss) {
+    hiss = c.ac.createBuffer(1, c.ac.sampleRate, c.ac.sampleRate);
+    const data = hiss.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  }
+  const src = c.ac.createBufferSource();
+  src.buffer = hiss;
+  const band = c.ac.createBiquadFilter();
+  band.type = "bandpass";
+  band.Q.value = q;
+  band.frequency.setValueAtTime(freq, when);
+  if (sweep !== 1) band.frequency.exponentialRampToValueAtTime(freq * sweep, when + attack + decay);
+  const env = c.ac.createGain();
+  env.gain.setValueAtTime(0.0001, when);
+  env.gain.exponentialRampToValueAtTime(gain, when + attack);
+  env.gain.exponentialRampToValueAtTime(0.0001, when + attack + decay);
+  src.connect(band).connect(env).connect(dest);
+  src.start(when, Math.random() * 0.5);
+  src.stop(when + attack + decay + 0.05);
+}
+/** A struck tone at `freq` hertz that dies away quickly, like a tap on bone. */
+function knock(dest: AudioNode, when: number, freq: number, decay: number, gain: number) {
+  const c = ctx!;
+  const osc = c.ac.createOscillator();
+  const env = c.ac.createGain();
+  osc.frequency.setValueAtTime(freq * 1.25, when);
+  osc.frequency.exponentialRampToValueAtTime(freq, when + 0.012);
+  env.gain.setValueAtTime(gain, when);
+  env.gain.exponentialRampToValueAtTime(0.0001, when + decay);
+  osc.connect(env).connect(dest);
+  osc.start(when);
+  osc.stop(when + decay + 0.02);
+}
+/**
+ * One tile meeting another: the sharp tick of the touch, the ring of the
+ * tile and the thump of the table under it. `pitch` is a small tile's
+ * higher, a heavy landing's lower.
+ */
+function clack(dest: AudioNode, when: number, pitch = 1, gain = 1) {
+  noise(dest, when, { freq: 3400 * pitch, q: 1.2, decay: 0.022, gain: 0.5 * gain });
+  knock(dest, when, 1450 * pitch, 0.045, 0.16 * gain);
+  knock(dest, when, 2380 * pitch, 0.03, 0.07 * gain);
+  knock(dest, when, 210 * pitch, 0.07, 0.22 * gain);
+}
+/** A small bell: a note with a glassy overtone above it. */
+function bell(dest: AudioNode, midi: number, when: number, gain: number, release = 1.4) {
+  tone(dest, midi, when, { attack: 0.004, release, gain });
+  tone(dest, midi + 12, when, { attack: 0.004, release: release * 0.5, gain: gain * 0.35 });
+  tone(dest, midi + 28.1, when, { attack: 0.002, release: release * 0.22, gain: gain * 0.18 });
+}
+/** A scatter of tiny high bells, like light on water. */
+function glitter(dest: AudioNode, when: number, count: number, over: number, gain: number) {
+  for (let i = 0; i < count; i++)
+    tone(dest, note(10 + Math.floor(Math.random() * 8), 74), when + Math.random() * over, { attack: 0.003, release: 0.5, gain: gain * (0.5 + Math.random() * 0.5) });
+}
+/** Many tiles knocking together. */
+function rattle(dest: AudioNode, when: number, count: number, over: number, gain: number) {
+  for (let i = 0; i < count; i++) clack(dest, when + (i / count) * over + Math.random() * 0.03, 0.8 + Math.random() * 0.6, gain * (0.5 + Math.random() * 0.5));
+}
+
+export type Sfx = "tap" | "select" | "land" | "match" | "blocked" | "shuffle" | "deal" | "undo" | "hint" | "win";
 /** `step` raises a match's notes a little with each one in a row. */
 export function play(sfx: Sfx, step = 0) {
   if (!soundOn) return;
@@ -152,27 +222,62 @@ export function play(sfx: Sfx, step = 0) {
   void c.ac.resume();
   const t = c.ac.currentTime + 0.01;
   switch (sfx) {
+    case "tap":
+      // A button: a soft, rounded tick.
+      noise(c.sfx, t, { freq: 1800, q: 0.8, decay: 0.02, gain: 0.16 });
+      knock(c.sfx, t, 620, 0.05, 0.1);
+      break;
     case "select":
-      tone(c.sfx, note(7), t, { release: 0.25, gain: 0.12 });
+      // A tile lifted off the board, and the air it moves through.
+      clack(c.sfx, t, 1.25, 0.55);
+      noise(c.sfx, t + 0.03, { freq: 900, q: 0.7, attack: 0.1, decay: 0.16, gain: 0.05, sweep: 2.4 });
+      break;
+    case "land":
+      // Set down in the tray, on wood.
+      clack(c.sfx, t, 0.82, 0.8);
+      knock(c.sfx, t, 130, 0.11, 0.2);
       break;
     case "match": {
+      // The pair knock together, ring, and scatter.
       const d = 5 + Math.min(step, 7);
-      tone(c.sfx, note(d), t, { release: 1.4, gain: 0.16 });
-      tone(c.sfx, note(d + 2), t + 0.09, { release: 1.6, gain: 0.13 });
+      clack(c.sfx, t, 1, 0.9);
+      clack(c.sfx, t + 0.035, 1.12, 0.6);
+      bell(c.sfx, note(d), t + 0.02, 0.15);
+      bell(c.sfx, note(d + 2), t + 0.11, 0.12, 1.6);
+      glitter(c.sfx, t + 0.08, 5, 0.35, 0.035);
+      noise(c.sfx, t + 0.02, { freq: 5200, q: 0.6, attack: 0.02, decay: 0.3, gain: 0.035, sweep: 1.6 });
       break;
     }
     case "blocked":
-      tone(c.sfx, note(0, 45), t, { type: "triangle", release: 0.18, gain: 0.12 });
+      // A dull knock: this one will not move.
+      knock(c.sfx, t, 150, 0.09, 0.3);
+      noise(c.sfx, t, { freq: 700, q: 1, decay: 0.03, gain: 0.22 });
+      knock(c.sfx, t + 0.07, 135, 0.08, 0.18);
       break;
     case "hint":
-      tone(c.sfx, note(9), t, { release: 0.9, gain: 0.1 });
-      tone(c.sfx, note(11), t + 0.12, { release: 0.9, gain: 0.1 });
+      bell(c.sfx, note(9), t, 0.09, 0.9);
+      bell(c.sfx, note(11), t + 0.12, 0.09, 1.1);
+      glitter(c.sfx, t + 0.1, 3, 0.25, 0.025);
+      break;
+    case "undo":
+      // The tile drawn back, and put where it was.
+      noise(c.sfx, t, { freq: 2200, q: 0.7, attack: 0.09, decay: 0.08, gain: 0.05, sweep: 0.4 });
+      clack(c.sfx, t + 0.13, 0.95, 0.6);
       break;
     case "shuffle":
-      for (let i = 0; i < 5; i++) tone(c.sfx, note(4 + i), t + i * 0.05, { release: 0.3, gain: 0.06 });
+      // Tiles washed across the table.
+      rattle(c.sfx, t, 16, 0.5, 0.5);
+      noise(c.sfx, t, { freq: 1500, q: 0.5, attack: 0.2, decay: 0.35, gain: 0.05, sweep: 1.8 });
+      break;
+    case "deal":
+      // A new board laid out, tile after tile.
+      rattle(c.sfx, t, 14, 0.7, 0.3);
       break;
     case "win":
-      [5, 7, 9, 10, 12].forEach((d, i) => tone(c.sfx, note(d), t + i * 0.14, { release: 2.2, gain: 0.13 }));
+      [5, 7, 9, 10, 12].forEach((d, i) => bell(c.sfx, note(d), t + i * 0.13, 0.12, 2.4));
+      tone(c.sfx, note(0, 50), t, { attack: 0.02, release: 3, gain: 0.12 });
+      tone(c.sfx, note(2, 50), t + 0.65, { type: "triangle", attack: 0.3, release: 2.6, gain: 0.05 });
+      glitter(c.sfx, t + 0.5, 22, 1.8, 0.035);
       break;
   }
 }

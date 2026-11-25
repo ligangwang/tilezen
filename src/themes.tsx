@@ -2,6 +2,7 @@
 // here as SVG, our own designs, in strong colours on a light tile so they
 // stay easy to tell apart, large or small.
 import type { ReactNode } from "react";
+import { GLYPHS } from "./glyphs";
 
 export const FACE_COUNT = 36;
 
@@ -11,17 +12,21 @@ export type Theme = {
   name: string;
   /** The level that opens it. */
   unlock: number;
-  /** The tile's face colour, its edge, and the table behind the board. */
+  /**
+   * A tile is two layers, like a real one: a pale front (`tile`, shaded to
+   * `edge` down its side) on a coloured back. Then the table under the board.
+   */
   tile: string;
   edge: string;
+  back: string;
   table: [string, string];
 };
 
 export const THEMES: Theme[] = [
-  { id: "classic", name: "Classic", unlock: 1, tile: "#fffaf0", edge: "#d2b98a", table: ["#2f6b5c", "#163a32"] },
-  { id: "garden", name: "Garden", unlock: 6, tile: "#fffdf6", edge: "#c9b27d", table: ["#5b7a4a", "#2c4126"] },
-  { id: "sea", name: "Sea", unlock: 14, tile: "#f7fbff", edge: "#a9bccb", table: ["#2a5d7c", "#112c40"] },
-  { id: "night", name: "Starry Night", unlock: 24, tile: "#fbf9ff", edge: "#b6aed0", table: ["#3b3470", "#171433"] },
+  { id: "classic", name: "Classic", unlock: 1, tile: "#fffcf4", edge: "#e6d8b8", back: "#1f9d76", table: ["#2d6a5a", "#12332b"] },
+  { id: "garden", name: "Garden", unlock: 6, tile: "#fffdf6", edge: "#ddd0a8", back: "#b5673c", table: ["#5b7a4a", "#2c4126"] },
+  { id: "sea", name: "Sea", unlock: 14, tile: "#f7fbff", edge: "#cfdbe6", back: "#2a78b0", table: ["#2a5d7c", "#112c40"] },
+  { id: "night", name: "Starry Night", unlock: 24, tile: "#fbf9ff", edge: "#d6d0e6", back: "#5a4bb0", table: ["#3b3470", "#171433"] },
 ];
 export const themeById = (id: string) => THEMES.find((t) => t.id === id) ?? THEMES[0];
 export const openThemes = (level: number) => THEMES.filter((t) => t.unlock <= level);
@@ -102,24 +107,35 @@ function sticks(n: number) {
   );
 }
 
+/**
+ * A tile character, its outline centred on x, y and `size` tall an em. The
+ * thin strokes are filled out a little so they hold at small sizes.
+ */
+function han(ch: string, x: number, y: number, size: number, fill: string) {
+  const [d, w, h] = GLYPHS[ch];
+  const k = size / 100;
+  return (
+    <path
+      d={d}
+      transform={`translate(${x - (w * k) / 2} ${y - (h * k) / 2}) scale(${k})`}
+      fill={fill}
+      stroke={fill}
+      strokeWidth="2.4"
+      strokeLinejoin="round"
+    />
+  );
+}
+
 const NUMERALS = ["一", "二", "三", "四", "五", "六", "七", "八", "九"];
 function numeral(n: number) {
   return (
     <>
-      <text x="31" y="38" textAnchor="middle" fontSize="30" fontWeight="900" fill={BLUE} fontFamily={HAN_FONT}>
-        {NUMERALS[n - 1]}
-      </text>
-      <text x="31" y="72" textAnchor="middle" fontSize="30" fontWeight="900" fill={RED} fontFamily={HAN_FONT}>
-        萬
-      </text>
+      {han(NUMERALS[n - 1], 31, 24, 31, BLUE)}
+      {han("萬", 31, 59, 33, RED)}
     </>
   );
 }
 
-// The tiles carry traditional characters, as mahjong tiles do, so the
-// fonts that draw them come first.
-const HAN_FONT =
-  '"Noto Serif TC", "Songti TC", "PMingLiU", "Noto Serif SC", "Songti SC", "SimSun", "Noto Sans TC", "PingFang TC", "Noto Sans SC", "PingFang SC", serif';
 const HONOURS: [string, string][] = [
   ["東", INK],
   ["南", INK],
@@ -141,11 +157,7 @@ function honour(n: number) {
         <rect x="21" y="23" width="20" height="40" rx="2" strokeWidth="2.5" />
       </g>
     );
-  return (
-    <text x="31" y="58" textAnchor="middle" fontSize="40" fontWeight="900" fill={color} fontFamily={HAN_FONT}>
-      {ch}
-    </text>
-  );
+  return han(ch, 31, 42, 46, color);
 }
 
 // ---- Picture themes: a suit's picture, drawn once for each of its number ----
@@ -267,8 +279,38 @@ function picture(theme: Exclude<ThemeId, "classic">, suit: number, n: number) {
 export function faceArt(theme: ThemeId, face: number): ReactNode {
   const suit = Math.floor(face / 9);
   const n = (face % 9) + 1;
-  if (theme === "classic") return [dots, sticks, numeral, honour][suit](n);
-  return picture(theme, suit, n);
+  const art = theme === "classic" ? [dots, sticks, numeral, honour][suit](n) : picture(theme, suit, n);
+  return <g filter="url(#tz-carve)">{art}</g>;
+}
+
+/**
+ * What the tile drawings share, to put on the page once: the filter that
+ * carves a drawing into its tile. Light comes from the top left, so each
+ * shape gets a shaded inner edge there and a bright lip along its far side,
+ * like paint in a cut groove.
+ */
+export function TileDefs() {
+  return (
+    <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true">
+      <defs>
+        <filter id="tz-carve" x="-10%" y="-10%" width="120%" height="120%" colorInterpolationFilters="sRGB">
+          <feOffset in="SourceAlpha" dx="0.7" dy="0.9" result="lipShape" />
+          <feFlood floodColor="#fff" />
+          <feComposite in2="lipShape" operator="in" result="lip" />
+          <feOffset in="SourceAlpha" dx="1" dy="1.3" />
+          <feGaussianBlur stdDeviation="0.55" result="lit" />
+          <feComposite in="SourceAlpha" in2="lit" operator="out" result="shadeShape" />
+          <feFlood floodColor="#000" floodOpacity="0.5" />
+          <feComposite in2="shadeShape" operator="in" result="shade" />
+          <feMerge>
+            <feMergeNode in="lip" />
+            <feMergeNode in="SourceGraphic" />
+            <feMergeNode in="shade" />
+          </feMerge>
+        </filter>
+      </defs>
+    </svg>
+  );
 }
 
 const HONOUR_NAMES = ["East", "South", "West", "North", "Red", "Green", "White", "Spring", "Autumn"];

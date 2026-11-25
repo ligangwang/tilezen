@@ -1,6 +1,6 @@
 // Tile Zen: the menu, the board with its toolbar, the result card, free
 // play, tile themes and settings.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { SignInReason } from "../sdk/dingn-sdk.js";
 import { useDingn, useLocale } from "./dingn";
 import { BoardView } from "./board-view";
@@ -9,8 +9,10 @@ import * as S from "./engine/session";
 import { badgesFor, BIG_BOARD } from "./badges";
 import { DAILY_COINS, FREE_LEVELS, OPEN_DEPTH, coinsFor, dailyLayout, daySeed, depthFor, layoutFor, levelSeed, today } from "./levels";
 import { loadSaved, merge, store, type Prefs, type Saved } from "./save";
-import { FACE_COUNT, THEMES, faceArt, faceLabel, openThemes, themeById, type Theme } from "./themes";
+import { FACE_COUNT, THEMES, TileDefs, faceArt, faceLabel, openThemes, themeById, type Theme } from "./themes";
 import * as sound from "./sound";
+import { Icon } from "./icons";
+import { FLY_MS, POP_MS, createFx, fly, pop, type Fx } from "./fx";
 
 type Mode = "level" | "daily" | "free";
 type Run = {
@@ -32,8 +34,10 @@ type Result = {
   opened: string[];
 };
 type Screen = "menu" | "play" | "layouts" | "themes";
-/** How long a matched pair takes to glide together and go (tilezen.css). */
-const LEAVE_MS = 420;
+/** How long a matched tile takes to fly to its twin in the tray, and the pair to pop. */
+const LEAVE_MS = FLY_MS + POP_MS;
+/** The colours of the petals a theme throws. */
+const petals = (theme: Theme) => [theme.back, "#ff9db5", "#ffd76a", "#fff7e0"];
 
 export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; prefs: Prefs }) {
   const sdk = useDingn();
@@ -55,9 +59,28 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   const [settings, setSettings] = useState(false);
   const [run, setRun] = useState<Run | null>(null);
   const [hint, setHint] = useState<number[] | null>(null);
-  const [leaving, setLeaving] = useState<number[]>([]);
-  // Tiles just taken out of the tray with their twins, lighting up as they go.
-  const [trayLeaving, setTrayLeaving] = useState<{ id: number; face: number; at: number }[]>([]);
+  // A matched pair on its way out, over the tray: the twin that waited at
+  // place `at`, and the tile that flies in from the board to meet it.
+  const [trayLeaving, setTrayLeaving] = useState<{ id: number; face: number; at: number; flies: boolean }[]>([]);
+  // Where each tile just picked left the board, until it has been flown in.
+  const flights = useRef(new Map<number, DOMRect>());
+  const playEl = useRef<HTMLDivElement>(null);
+  const fxCanvas = useRef<HTMLCanvasElement>(null);
+  const fx = useRef<Fx | null>(null);
+  function effects() {
+    if (fx.current?.canvas !== fxCanvas.current) fx.current = fxCanvas.current && createFx(fxCanvas.current);
+    return fx.current;
+  }
+  // Once the tray is drawn with a picked tile in it, fly the tile there.
+  useLayoutEffect(() => {
+    for (const [id, from] of flights.current) {
+      const el = playEl.current?.querySelector<HTMLElement>(`[data-fly="${id}"]`);
+      if (!el) continue;
+      fly(el, from);
+      if (el.classList.contains("gone")) pop(el, FLY_MS, -1);
+    }
+    flights.current.clear();
+  });
   // Matches in a row with no wrong tap and no help: only for the fun of it.
   const [streak, setStreak] = useState(0);
   const [shake, setShake] = useState<number | null>(null);
@@ -85,8 +108,10 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   useEffect(() => {
     if (musicStarted.current) sound.setMusic(prefs.music);
   }, [prefs.music]);
-  function tapped() {
+  function tapped(e?: React.PointerEvent) {
     sound.wake();
+    // Every button answers with a tick; a tile has its own sound.
+    if ((e?.target as Element | undefined)?.closest?.("button:not(.tile):not(:disabled), .toggle")) sound.play("tap");
     if (!musicStarted.current) {
       musicStarted.current = true;
       if (prefs.music) sound.setMusic(true);
@@ -127,12 +152,14 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     current.current = started;
     setRun({ mode, level, day: on, layout, session: S.start(layout.slots, FACE_COUNT, seed, depth), started });
     setHint(null);
-    setLeaving([]);
+    flights.current.clear();
+    fx.current?.clear();
     setTrayLeaving([]);
     setStreak(0);
     setResult(null);
     setNote("");
     setScreen("play");
+    sound.play("deal");
   }
   const playLevel = (level: number) => begin("level", level, layoutFor(level), levelSeed(level));
   // Today as it is now: the menu may have been open since yesterday.
@@ -173,23 +200,36 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
       return;
     }
     setHint(null);
+    // The tile flies from here to the tray.
+    const from = playEl.current?.querySelector(`[data-tile="${i}"]`)?.getBoundingClientRect();
+    if (from) flights.current.set(i, from);
     update(next);
+    sound.play("select");
+    const started = run.started;
     if (next.tray.length > s.tray.length) {
       // It waits in the tray for its twin.
-      sound.play("select");
+      setTimeout(() => current.current === started && sound.play("land"), FLY_MS);
       return;
     }
-    sound.play("match", streak);
     setStreak(streak + 1);
-    // The tile and its twin in the tray light up and go; a quick player's pairs overlap.
+    // It lands beside its twin, and the pair pops in a puff of petals; a
+    // quick player's pairs overlap.
     const twin = s.tray.find((j) => !next.tray.includes(j))!;
-    const gone = { id: twin, face: s.faces[twin], at: s.tray.indexOf(twin) };
-    setLeaving((l) => [...l, i]);
-    setTrayLeaving((l) => [...l, gone]);
+    const at = s.tray.indexOf(twin);
+    const pair = [
+      { id: twin, face: s.faces[twin], at, flies: false },
+      { id: i, face: s.faces[i], at, flies: true },
+    ];
+    setTrayLeaving((l) => [...l, ...pair]);
     setTimeout(() => {
-      setLeaving((l) => l.filter((x) => x !== i));
-      setTrayLeaving((l) => l.filter((x) => x !== gone));
-    }, LEAVE_MS);
+      if (current.current !== started) return;
+      sound.play("match", streak);
+      const waiting = playEl.current?.querySelector<HTMLElement>(`[data-gone="${twin}"]`);
+      const box = waiting?.getBoundingClientRect();
+      if (waiting) pop(waiting, 0, 1);
+      if (box?.width) effects()?.burst(box.right, box.top + box.height / 2, petals(theme));
+    }, FLY_MS);
+    setTimeout(() => setTrayLeaving((l) => l.filter((x) => !pair.includes(x))), LEAVE_MS);
     // The last pair is seen leaving before the result covers the board.
     if (S.cleared(next)) setTimeout(() => void finish(run, next), LEAVE_MS);
   }
@@ -207,6 +247,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   function onUndo() {
     tapped();
     if (!run || result || S.cleared(run.session) || !run.session.history.length) return;
+    sound.play("undo");
     setStreak(0);
     setHint(null);
     update(S.undo(run.session));
@@ -248,7 +289,10 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     } else if (calm) next.calm = saved.calm + 1;
     // Left for the menu or another board meanwhile: it still counts, unseen.
     const shown = current.current === r.started;
-    if (shown) setResult({ coins: null, worth, calm, seconds, opened });
+    if (shown) {
+      setResult({ coins: null, worth, calm, seconds, opened });
+      effects()?.rain(petals(theme));
+    }
     // Progress is saved at once; coins are paid after, on their own.
     commit(next);
     if (!signedIn) return;
@@ -283,10 +327,12 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   const style = {
     ["--table-a" as string]: theme.table[0],
     ["--table-b" as string]: theme.table[1],
+    ...tileColors(theme),
   };
 
   return (
     <div className={`tz${prefs.large ? " large" : ""}`} style={style} onPointerDown={tapped}>
+      <TileDefs />
       {screen === "menu" && (
         <Menu
           reached={reached}
@@ -336,10 +382,11 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
         </Picker>
       )}
       {screen === "play" && run && (
-        <div className="play">
+        <div className="play" ref={playEl}>
           <header className="hud">
             <button type="button" className="hud-button" onClick={() => { current.current = 0; setScreen("menu"); setRun(null); }} aria-label={t("Menu")}>
-              ☰ <span className="hud-label">{t("Menu")}</span>
+              <Icon name="home" />
+              <span className="hud-label">{t("Menu")}</span>
             </button>
             <div className="hud-title">
               <strong>
@@ -351,7 +398,8 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
               </span>
             </div>
             <button type="button" className="hud-button" onClick={() => setSettings(true)} aria-label={t("Settings")}>
-              ⚙ <span className="hud-label">{t("Settings")}</span>
+              <Icon name="gear" />
+              <span className="hud-label">{t("Settings")}</span>
             </button>
           </header>
           {/* How much of the board is cleared. */}
@@ -387,10 +435,10 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
           ) : (
             <>
               <BoardView
+                key={run.started}
                 session={run.session}
                 theme={theme}
                 hint={hint}
-                leaving={leaving}
                 shake={shake}
                 dim={prefs.dim}
                 large={prefs.large}
@@ -415,11 +463,11 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
               <Tray session={run.session} theme={theme} hint={hint} leaving={trayLeaving} />
               <footer className="toolbar">
                 <button type="button" className="tool" onClick={onHint} disabled={done}>
-                  <span className="tool-icon" aria-hidden="true">💡</span>
+                  <span className="tool-icon"><Icon name="hint" size={26} /></span>
                   {t("Hint")}
                 </button>
                 <button type="button" className="tool" onClick={onUndo} disabled={done || !run.session.history.length}>
-                  <span className="tool-icon" aria-hidden="true">↶</span>
+                  <span className="tool-icon"><Icon name="undo" size={26} /></span>
                   {t("Undo")}
                 </button>
                 <button
@@ -428,18 +476,19 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                   onClick={() => onShuffle()}
                   disabled={done}
                 >
-                  <span className="tool-icon" aria-hidden="true">⇄</span>
+                  <span className="tool-icon"><Icon name="shuffle" size={26} /></span>
                   {t("Shuffle")}
                 </button>
                 {sdk.player.tester && run.mode === "level" && !result && (
                   <button type="button" className="tool" onClick={() => finish(run, run.session)}>
-                    <span className="tool-icon" aria-hidden="true">⏭</span>
+                    <span className="tool-icon"><Icon name="skip" size={26} /></span>
                     {t("Skip")}
                   </button>
                 )}
               </footer>
             </>
           )}
+          <canvas className="fx" ref={fxCanvas} aria-hidden="true" />
           {result && (
             <div className="overlay result">
               <div className="panel">
@@ -460,7 +509,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                 {run.mode === "daily" && result.worth === 0 && <p>{t("Today's puzzle has already paid its coins. Come back tomorrow for a new one.")}</p>}
                 {result.opened.map((o) => (
                   <p key={o} className="opened">
-                    ✦ {o}
+                    {o}
                   </p>
                 ))}
                 <div className="actions">
@@ -488,6 +537,25 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   );
 }
 
+/** A theme's tile colours, for the tiles drawn inside the element. */
+const tileColors = (theme: Theme) => ({
+  ["--tile" as string]: theme.tile,
+  ["--edge" as string]: theme.edge,
+  ["--back" as string]: theme.back,
+});
+
+/** A small tile that is only for show: the logo and the theme samples. */
+function MiniTile({ theme, face }: { theme: Theme; face: number }) {
+  return (
+    <span className="mini-tile">
+      <span className="side" />
+      <span className="face">
+        <svg viewBox="0 0 62 84">{faceArt(theme.id, face)}</svg>
+      </span>
+    </span>
+  );
+}
+
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 
 function Menu(props: {
@@ -508,34 +576,34 @@ function Menu(props: {
       <div className="menu">
         <div className="logo" aria-hidden="true">
           {[0, 31, 27].map((face) => (
-            <span key={face} className="mini-tile" style={{ background: theme.tile }}>
-              <svg viewBox="0 0 62 84">{faceArt(theme.id, face)}</svg>
-            </span>
+            <MiniTile key={face} theme={theme} face={face} />
           ))}
         </div>
         <h1>{t("Tile Zen")}</h1>
         <p className="tagline">{t("Match pairs of free tiles and clear the board, at your own pace.")}</p>
         <div className="menu-buttons">
           <button type="button" className="big primary" onClick={props.onLevel}>
-            <span className="menu-icon" aria-hidden="true">▶</span>
+            <span className="menu-icon"><Icon name="play" size={22} /></span>
             {t("Play level {0}", String(reached))}
           </button>
           <div className="row">
             <button type="button" className="big" onClick={props.onDaily}>
-              <span className="menu-icon" aria-hidden="true">☀</span>
+              <span className="menu-icon"><Icon name="sun" size={26} /></span>
               {t("Daily puzzle")}
-              {dailyDone && <span className="done"> ✓</span>}
+              {dailyDone && <span className="done"><Icon name="check" size={18} /></span>}
             </button>
             <button type="button" className="big" onClick={props.onLayouts}>
-              <span className="menu-icon" aria-hidden="true">❖</span>
+              <span className="menu-icon"><Icon name="layers" size={26} /></span>
               {t("Free play")}
             </button>
           </div>
           <div className="row">
             <button type="button" className="big quiet" onClick={props.onThemes}>
+              <span className="menu-icon"><Icon name="palette" size={20} /></span>
               {t("Tile themes")}
             </button>
             <button type="button" className="big quiet" onClick={props.onSettings}>
+              <span className="menu-icon"><Icon name="gear" size={20} /></span>
               {t("Settings")}
             </button>
           </div>
@@ -561,7 +629,8 @@ function Picker({ title, sub, onBack, children }: { title: string; sub: string; 
     <div className="picker">
       <header className="picker-head">
         <button type="button" className="hud-button" onClick={onBack}>
-          ← {t("Back")}
+          <Icon name="back" />
+          <span>{t("Back")}</span>
         </button>
         <h2>{title}</h2>
       </header>
@@ -595,11 +664,9 @@ function LayoutThumb({ layout }: { layout: Layout }) {
 
 function ThemeSample({ theme }: { theme: Theme }) {
   return (
-    <span className="sample" style={{ background: `linear-gradient(160deg, ${theme.table[0]}, ${theme.table[1]})` }}>
+    <span className="sample" style={{ background: `linear-gradient(160deg, ${theme.table[0]}, ${theme.table[1]})`, ...tileColors(theme) }}>
       {[4, 13, 22, 30].map((f) => (
-        <span key={f} className="mini-tile" style={{ background: theme.tile }}>
-          <svg viewBox="0 0 62 84">{faceArt(theme.id, f)}</svg>
-        </span>
+        <MiniTile key={f} theme={theme} face={f} />
       ))}
     </span>
   );
@@ -649,7 +716,7 @@ function Tray({
   session: S.Session;
   theme: Theme;
   hint: number[] | null;
-  leaving: { id: number; face: number; at: number }[];
+  leaving: { id: number; face: number; at: number; flies: boolean }[];
 }) {
   const { t } = useLocale();
   const label = (face: number) => {
@@ -657,30 +724,38 @@ function Tray({
     return n ? t(name, n) : t(name);
   };
   const face = (f: number) => (
-    <span className="face">
-      <svg viewBox="0 0 62 84" aria-hidden="true">
-        {faceArt(theme.id, f)}
-      </svg>
-    </span>
+    <>
+      <span className="side" />
+      <span className="face">
+        <svg viewBox="0 0 62 84" aria-hidden="true">
+          {faceArt(theme.id, f)}
+        </svg>
+      </span>
+    </>
   );
   return (
     <ul
       className={`tray${session.tray.length >= S.TRAY ? " full" : ""}`}
       aria-label={t("Tray: {0} of {1} places taken", String(session.tray.length), String(S.TRAY))}
-      style={{ ["--tile" as string]: theme.tile, ["--edge" as string]: theme.edge }}
     >
       {Array.from({ length: S.TRAY }, (_, k) => {
         const i = session.tray[k];
         return i === undefined ? (
           <li key={`empty-${k}`} className="tray-place" aria-hidden="true" />
         ) : (
-          <li key={i} className={`tray-place held${hint?.includes(i) ? " hinted" : ""}`} data-tray={i} aria-label={label(session.faces[i])}>
+          <li key={i} className={`tray-place held${hint?.includes(i) ? " hinted" : ""}`} data-tray={i} data-fly={i} aria-label={label(session.faces[i])}>
             {face(session.faces[i])}
           </li>
         );
       })}
       {leaving.map((g) => (
-        <li key={`gone-${g.id}`} className="tray-place held gone" aria-hidden="true" style={{ ["--at" as string]: g.at }}>
+        <li
+          key={`gone-${g.id}`}
+          className={`tray-place held gone${g.flies ? " flies" : ""}`}
+          aria-hidden="true"
+          style={{ ["--at" as string]: g.at }}
+          {...(g.flies ? { "data-fly": g.id } : { "data-gone": g.id })}
+        >
           {face(g.face)}
         </li>
       ))}
