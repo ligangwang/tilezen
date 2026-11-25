@@ -1,7 +1,7 @@
 // Tile Zen: the menu, the board with its toolbar, the result card, free
 // play, tile themes and settings.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { SignInReason } from "../sdk/dingn-sdk.js";
+import type { Challenge, ChallengeOutcome, ChallengeStanding, SignInReason } from "../sdk/dingn-sdk.js";
 import { useDingn, useLocale } from "./dingn";
 import { BoardView } from "./board-view";
 import { LAYOUTS, openLayouts, type Layout } from "./engine/layouts";
@@ -24,7 +24,26 @@ type Run = {
   seed: number;
   session: S.Session;
   started: number;
+  /** The friend's challenge this board answers, when a challenge link opened it. */
+  challenge?: Challenge;
 };
+/**
+ * What a result knows of challenges: for a board played on its own, the
+ * board's open challenge (null when it has none) and the link once made;
+ * for one played to answer a challenge, how that ended.
+ */
+type Duel = {
+  standing?: ChallengeStanding | null;
+  outcome?: ChallengeOutcome;
+  link?: { busy?: boolean; url?: string; copied?: boolean; failed?: boolean };
+};
+/** The scoring rules a challenge was played under, saved with it. */
+const SCORE_RULES = "s1";
+/** The challenge a score on this board makes, or null where there are none (free play). */
+function challengeOf(r: Run, score: number): Challenge | null {
+  if (r.mode === "free") return null;
+  return { mode: r.mode, seed: r.mode === "level" ? String(r.level) : r.day, score, unit: "points", rules: SCORE_RULES };
+}
 type Result = {
   /** Coins dingn paid, null when nothing was asked for (or signed out). */
   coins: number | null;
@@ -107,6 +126,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   const [pending, setPending] = useState(0);
   // The tray filled with four different tiles: the card that says so is up.
   const [lost, setLost] = useState(false);
+  const [duel, setDuel] = useState<Duel>({});
   // Points drifting up from where they were won or lost.
   const [floats, setFloats] = useState<{ id: number; text: string; minus: boolean; x?: number; y?: number }[]>([]);
   const floatId = useRef(0);
@@ -169,12 +189,13 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     return () => clearTimeout(id);
   }, [note]);
 
-  function begin(mode: Mode, level: number, layout: Layout, seed: number, on = day) {
+  function begin(mode: Mode, level: number, layout: Layout, seed: number, on = day, challenge?: Challenge) {
     const depth = mode === "level" ? depthFor(level) : OPEN_DEPTH;
     const started = Date.now();
     current.current = started;
-    setRun({ mode, level, day: on, layout, seed, session: S.start(layout.slots, FACE_COUNT, seed, depth), started });
+    setRun({ mode, level, day: on, layout, seed, session: S.start(layout.slots, FACE_COUNT, seed, depth), started, challenge });
     setLost(false);
+    setDuel({});
     setHint(null);
     flights.current.clear();
     fx.current?.clear();
@@ -194,7 +215,19 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   };
   const playFree = (layout: Layout) => begin("free", 0, layout, (Date.now() & 0x7fffffff) | 1);
 
-  const locked = run?.mode === "level" && run.level > FREE_LEVELS && !signedIn;
+  // A friend's challenge link opened the game: play that board, the same
+  // level or day's puzzle they played. (dingn has shown the score to beat.)
+  useEffect(() => {
+    const c = sdk.challenge;
+    if (!c) return;
+    const level = Number(c.seed);
+    if (c.mode === "level" && Number.isInteger(level) && level >= 1 && level <= 99999) begin("level", level, layoutFor(level), levelSeed(level), day, c);
+    else if (c.mode === "daily" && /^\d{4}-\d\d-\d\d$/.test(c.seed ?? "")) begin("daily", 0, dailyLayout(c.seed!), daySeed(c.seed!), c.seed, c);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // A challenged level is open to whoever was sent it.
+  const locked = run?.mode === "level" && run.level > FREE_LEVELS && !signedIn && !run.challenge;
   // A cleared board takes no more taps or help while its last pair leaves
   // and the result comes up, so it is finished (and paid) once.
   const done = !!result || (!!run && (S.cleared(run.session) || S.failed(run.session)));
@@ -202,7 +235,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   function retry() {
     if (!run) return;
     sdk.roundEnded();
-    begin(run.mode, run.level, run.layout, run.seed, run.day);
+    begin(run.mode, run.level, run.layout, run.seed, run.day, run.challenge);
   }
 
   function update(session: S.Session) {
@@ -315,12 +348,13 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     if (r.mode === "level") {
       worth = coinsFor(tiles, calm);
       if (calm) next.calm = saved.calm + 1;
-      if (r.level > saved.cleared) {
+      // The next level on, not one a challenge reached ahead to.
+      if (r.level === saved.cleared + 1) {
         next.cleared = r.level;
         for (const l of LAYOUTS) if (l.unlock === r.level + 1) opened.push(t("New layout: {0}", layoutName(l)));
         for (const th of THEMES) if (th.unlock === r.level + 1) opened.push(t("New tile theme: {0}", t(th.name)));
       }
-    } else if (r.mode === "daily") {
+    } else if (r.mode === "daily" && r.day === today()) {
       const first = saved.daily?.day !== r.day;
       if (first) next.dailies = saved.dailies + 1;
       if (calm) next.calm = saved.calm + 1;
@@ -342,6 +376,11 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
         calmBonus: S.calmBonus(session),
       });
       effects()?.rain(petals(theme));
+      // The board's challenge: how this one ended, or what a new one would meet.
+      const mine = challengeOf(r, S.score(session));
+      const still = () => current.current === r.started;
+      if (r.challenge) void sdk.challengeResult?.(S.score(session)).then((outcome) => still() && setDuel((d) => ({ ...d, outcome })), () => {});
+      else if (mine) void sdk.challengeStanding?.(mine).then((standing) => still() && setDuel((d) => ({ ...d, standing })), () => {});
     }
     // Progress is saved at once; coins are paid after, on their own.
     commit(next);
@@ -363,9 +402,28 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     }
   }
 
+  /** Posts the score as a challenge (or under the board's open one) and hands the player its link. */
+  async function onChallenge() {
+    const mine = run && result && challengeOf(run, result.score);
+    if (!mine || duel.link?.busy) return;
+    const started = run.started;
+    const set = (link: Duel["link"]) => current.current === started && setDuel((d) => ({ ...d, link }));
+    set({ busy: true });
+    try {
+      const url = await sdk.challengeLink(mine);
+      // Copied where the browser allows it; shown to copy by hand either way.
+      const copied = await navigator.clipboard?.writeText(url).then(() => true, () => false);
+      set({ url, copied: !!copied });
+    } catch {
+      set({ failed: true });
+    }
+  }
+
   // All sign-in prompts on a result are dingn's: the game only says when.
   const signInReasons: SignInReason[] =
-    !signedIn && result && run?.mode !== "free" ? (run?.mode === "level" ? ["rewards", "progress"] : ["rewards"]) : [];
+    !signedIn && result && run?.mode !== "free"
+      ? [...(run?.challenge || duel.standing ? (["score"] as SignInReason[]) : []), ...((run?.mode === "level" ? ["rewards", "progress"] : ["rewards"]) as SignInReason[])]
+      : [];
   const signInKey = signInReasons.join(",");
   useEffect(() => {
     if (!signInKey || !sdk.showSignIn) return;
@@ -462,6 +520,9 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                 </em>
               ))}
             </div>
+          )}
+          {!locked && run.challenge && (
+            <p className="target">{t("Score to beat: {0}", count(run.challenge.score))}</p>
           )}
           {/* How much of the board is cleared. */}
           <div className="progress" aria-hidden="true">
@@ -622,6 +683,39 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                     {o}
                   </p>
                 ))}
+                {duel.outcome && (
+                  <div className={`duel${duel.outcome.beat ? " won" : ""}`} role="status">
+                    <strong>{duel.outcome.beat ? t("You beat the challenge!") : t("The challenge stands.")}</strong>
+                    <span>
+                      {t("Your best: {0} points", count(duel.outcome.best))}
+                      {duel.outcome.rank !== null && ` · ${t("Place {0} of {1}", String(duel.outcome.rank), String(duel.outcome.players))}`}
+                    </span>
+                  </div>
+                )}
+                {!run.challenge && duel.standing !== undefined && (
+                  <div className="duel">
+                    {duel.standing && (
+                      <span>
+                        {duel.standing.mine
+                          ? t("This board's challenge is yours, at {0} points.", count(duel.standing.score))
+                          : t("{0} holds this board's challenge with {1} points.", duel.standing.name, count(duel.standing.score))}
+                        {duel.standing.rank !== null && ` ${t("Your score would take place {0} of {1}.", String(duel.standing.rank), String(duel.standing.players))}`}
+                      </span>
+                    )}
+                    {duel.link?.url ? (
+                      <>
+                        <span>{duel.link.copied ? t("Link copied. Send it to anyone who should try to beat you.") : t("Send this link to anyone who should try to beat you.")}</span>
+                        <input readOnly value={duel.link.url} aria-label={t("Challenge link")} onFocus={(e) => e.currentTarget.select()} />
+                      </>
+                    ) : (
+                      <button type="button" className="big challenge" onClick={onChallenge} disabled={duel.link?.busy}>
+                        <span className="menu-icon"><Icon name="swords" size={20} /></span>
+                        {!duel.standing || !signedIn ? t("Challenge anyone") : duel.standing.mine ? t("Share your challenge") : t("Join the challenge")}
+                      </button>
+                    )}
+                    {duel.link?.failed && <span className="minus">{t("Challenges can't be made right now.")}</span>}
+                  </div>
+                )}
                 <div className="actions">
                   {run.mode === "level" && (
                     <button type="button" className="big primary" onClick={() => playLevel(run.level + 1)}>

@@ -47,6 +47,13 @@ back.
   and a calm clear (no help at all) adds a fifth. The result card shows
   what the score is made of. The rules are in `src/engine/session.ts`
   (`score`); nothing is timed.
+- **Challenges**: a cleared level or daily puzzle offers "Challenge anyone",
+  which posts the score through dingn (`sdk.challengeLink`) and gives a link
+  to send. Whoever opens it plays the same board (`sdk.challenge`: mode
+  `level` with the level's number, or `daily` with the day) with the score
+  to beat on screen, and dingn ranks the result (`sdk.challengeResult`).
+  Free play has no challenges. A challenged level is open to anyone sent
+  it, and does not move their own progress on.
 - **Levels**: endless short levels on 16 layouts of our own (Pebble, Stream,
   Lotus, Old Well, Stone Bridge, Moon Gate, Drum Tower, Lantern, Butterfly, Cloud, Pagoda, Folding
   Fan, Far Mountains, Twin Peaks, Courtyard, Mountain Temple), from 14 to 120

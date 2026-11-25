@@ -63,6 +63,12 @@ const PATHS: Record<string, ReactNode> = {
       <circle cx="9.5" cy="10.2" r="2.1" />
     </>
   ),
+  swords: (
+    <>
+      <path d="M5 4h3l9.5 9.5-3 3L5 7Z" />
+      <path d="M19 4h-3l-3.2 3.2M5 20l4.2-4.2M19 20l-2.5-2.5M4.5 15.5l4 4M19.5 15.5l-4 4" />
+    </>
+  ),
   check: <path d="m5.5 12.5 4.2 4.2 8.8-9.4" />,
   lock: (
     <>

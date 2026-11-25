@@ -87,5 +87,20 @@
   "Take the last tile back": "撤回最后一张牌",
   "One place left in the tray, and no free tile matches the tiles in it.": "牌槽只剩一个位置，也没有能和槽里的牌配对的牌。",
   "Shuffle or undo: one more tile would fill the tray.": "请洗牌或撤回：再拿一张牌，牌槽就满了。",
-  "The tray holds four tiles, so you can lift a tile out of the way to reach one under it. Fill it with four different tiles and the board is lost.": "牌槽能放四张牌，可以先把挡路的牌拿开，好拿到下面的牌。牌槽里放满四张不同的牌，这一局就失败了。"
+  "The tray holds four tiles, so you can lift a tile out of the way to reach one under it. Fill it with four different tiles and the board is lost.": "牌槽能放四张牌，可以先把挡路的牌拿开，好拿到下面的牌。牌槽里放满四张不同的牌，这一局就失败了。",
+  "Challenge anyone": "向大家发起挑战",
+  "Share your challenge": "分享你的挑战",
+  "Join the challenge": "加入挑战",
+  "This board's challenge is yours, at {0} points.": "这一局的挑战是你发起的，成绩 {0} 分。",
+  "{0} holds this board's challenge with {1} points.": "{0} 是这一局的擂主，成绩 {1} 分。",
+  "Your score would take place {0} of {1}.": "你的成绩能排第 {0} 名，共 {1} 人。",
+  "Link copied. Send it to anyone who should try to beat you.": "链接已复制，发给想来挑战的人吧。",
+  "Send this link to anyone who should try to beat you.": "把这个链接发给想来挑战的人吧。",
+  "Challenge link": "挑战链接",
+  "You beat the challenge!": "挑战成功！",
+  "The challenge stands.": "这次没能超过。",
+  "Your best: {0} points": "你的最好成绩：{0} 分",
+  "Place {0} of {1}": "第 {0} 名，共 {1} 人",
+  "Score to beat: {0}": "目标成绩：{0}",
+  "Challenges can't be made right now.": "现在无法发起挑战。"
 }

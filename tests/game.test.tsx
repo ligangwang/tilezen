@@ -11,7 +11,7 @@ vi.mock("../src/sound", () => ({ setSound() {}, wake() {}, play() {} }));
 afterEach(cleanup);
 
 function fakeSdk(signedIn: boolean, locale: Locale = "en") {
-  const calls = { earn: vi.fn(async (c: number) => ({ coins: c, left: 100 })), unlock: vi.fn(async () => ({ new: true, coins: 5 })), save: vi.fn(async () => {}), roundEnded: vi.fn(), showSignIn: vi.fn(), requestSignIn: vi.fn() };
+  const calls = { earn: vi.fn(async (c: number) => ({ coins: c, left: 100 })), unlock: vi.fn(async () => ({ new: true, coins: 5 })), save: vi.fn(async () => {}), roundEnded: vi.fn(), showSignIn: vi.fn(), requestSignIn: vi.fn(), challengeStanding: vi.fn(async () => null), challengeLink: vi.fn(async () => "https://dingn.com/c/abc"), challengeResult: vi.fn(async (score: number) => ({ beat: false, posted: true, best: score, rank: 2, players: 3 })) };
   const sdk = {
     gameId: "tilezen",
     version: "1.0.0",
@@ -24,6 +24,9 @@ function fakeSdk(signedIn: boolean, locale: Locale = "en") {
     progress: { load: async () => null, save: calls.save },
     rewards: { unlock: calls.unlock, list: async () => [], spend: async () => ({ new: true, coins: 0 }), shop: async () => [], earn: calls.earn },
     challenge: null,
+    challengeStanding: calls.challengeStanding,
+    challengeLink: calls.challengeLink,
+    challengeResult: calls.challengeResult,
     roundEnded: calls.roundEnded,
     requestSignIn: calls.requestSignIn,
     showSignIn: calls.showSignIn,
@@ -200,3 +203,31 @@ test("the last pair can't be undone into a second win while it leaves", async ()
   expect(calls.earn).toHaveBeenCalledTimes(1);
   expect(calls.roundEnded).toHaveBeenCalledTimes(1);
 });
+
+test("a cleared level offers a challenge, and a challenge link opens its board and reports the result", async () => {
+  const { sdk, calls } = fakeSdk(true);
+  const { unmount } = mount(sdk);
+  fireEvent.click(screen.getByRole("button", { name: "Play level 1" }));
+  await clearBoard();
+  // The board has no challenge yet, so the player can make one of their score.
+  const offer = await screen.findByRole("button", { name: "Challenge anyone" });
+  const asked = calls.challengeStanding.mock.calls[0] as unknown as [{ mode: string; seed: string; score: number; unit: string }];
+  expect(asked[0]).toMatchObject({ mode: "level", seed: "1", unit: "points" });
+  expect(asked[0].score).toBeGreaterThan(0);
+  fireEvent.click(offer);
+  expect(await screen.findByDisplayValue("https://dingn.com/c/abc")).toBeTruthy();
+  expect(calls.challengeLink).toHaveBeenCalledWith(asked[0]);
+  unmount();
+
+  // A friend follows the link: the game starts on that board, with the score to beat.
+  const friend = fakeSdk(false);
+  (friend.sdk as { challenge: unknown }).challenge = { mode: "level", seed: "1", score: 99999, unit: "points" };
+  mount(friend.sdk);
+  expect(document.querySelectorAll(".tile").length).toBe(14);
+  expect(screen.getByText("Score to beat: 99,999")).toBeTruthy();
+  await clearBoard();
+  expect(await screen.findByText("The challenge stands.")).toBeTruthy();
+  expect(friend.calls.challengeResult).toHaveBeenCalledTimes(1);
+  expect(screen.getByText(/Place 2 of 3/)).toBeTruthy();
+  expect(friend.calls.showSignIn).toHaveBeenCalledWith(["score", "rewards", "progress"]);
+}, 30000);

@@ -38,6 +38,11 @@ Notes for AI coding agents working on Tile Zen (静心麻将).
 - Every board has a score (`score` in `src/engine/session.ts`): pairs, more
   for pairs in a row, less for help, a bonus for a calm clear. Nothing is
   timed.
+- A challenge is a score on a level or a day's puzzle, which must deal the
+  same board for whoever opens its link: don't change `levelSeed`, `daySeed`,
+  `layoutFor`, `dailyLayout`, `depthFor` or the deal without thinking of the
+  open challenges, and raise `SCORE_RULES` in `src/game.tsx` when the
+  scoring changes.
 - Tile Zen is an original game: its name, layouts, tile drawings and sounds
   are our own. Don't copy names, art, layouts or sounds from other mahjong
   solitaire games.
