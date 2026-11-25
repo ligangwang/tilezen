@@ -18,7 +18,7 @@ test("game.json lists every language there is a pack for, with a title and descr
     assert.ok(game.title[field].trim());
     assert.ok(game.description[field].length <= 300);
   }
-  assert.equal(game.category, "puzzle");
+  assert.equal(game.category, "casual");
 });
 
 test("every string the game shows has a translation with the same placeholders", () => {
