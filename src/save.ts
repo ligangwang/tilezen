@@ -81,7 +81,6 @@ export async function store(sdk: Sdk, saved: Saved) {
 
 /** Settings, kept on this device. */
 export type Prefs = {
-  music: boolean;
   sound: boolean;
   /** Bigger tiles: the board can scroll instead of shrinking to fit. */
   large: boolean;
@@ -92,7 +91,6 @@ export type Prefs = {
   theme: string;
 };
 export const DEFAULT_PREFS: Prefs = {
-  music: true,
   sound: true,
   large: false,
   dim: true,
@@ -102,7 +100,7 @@ export const DEFAULT_PREFS: Prefs = {
 export function parsePrefs(value: Json): Prefs {
   const p = { ...DEFAULT_PREFS };
   if (!isObject(value)) return p;
-  for (const key of ["music", "sound", "large", "dim", "clock"] as const)
+  for (const key of ["sound", "large", "dim", "clock"] as const)
     if (typeof value[key] === "boolean") p[key] = value[key] as boolean;
   if (typeof value.theme === "string") p.theme = value.theme;
   return p;

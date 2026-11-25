@@ -6,7 +6,7 @@ import { TileZen } from "../src/game";
 import { DingnProvider } from "../src/dingn";
 import { DEFAULT_PREFS, empty, type Saved } from "../src/save";
 
-vi.mock("../src/sound", () => ({ setMusic() {}, setSound() {}, wake() {}, play() {} }));
+vi.mock("../src/sound", () => ({ setSound() {}, wake() {}, play() {} }));
 
 afterEach(cleanup);
 

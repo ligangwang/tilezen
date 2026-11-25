@@ -538,9 +538,12 @@ h2 {
   .board.dealing .tile {
     animation: none;
   }
-  .tray-place.gone,
+  .tray-place.gone.over,
   .streak {
     display: none;
+  }
+  .tray-place.gone {
+    visibility: hidden;
   }
 }
 
@@ -652,17 +655,17 @@ h2 {
   --d: 6px;
   --r: 8px;
 }
-/* A matched pair, over the place the twin had: the tile from the board
-   lands half a tile along from it, then both pop (fx.ts). */
+/* A matched tile keeps its place until it has met its twin and popped
+   (fx.ts). With the tray full it has no place of its own, so it lands half
+   over its twin. */
 .tray-place.gone {
+  pointer-events: none;
+}
+.tray-place.gone.over {
   position: absolute;
   z-index: 5;
   top: 11px;
-  left: calc(50% - (var(--tw) * 4 + 24px) / 2 + var(--at) * (var(--tw) + 8px));
-  pointer-events: none;
-}
-.tray-place.gone.flies {
-  margin-left: calc(var(--tw) * 0.5);
+  left: calc(50% - (var(--tw) * 4 + 24px) / 2 + var(--at) * (var(--tw) + 8px) + var(--tw) * 0.5);
 }
 .tray-place.held {
   background: none;

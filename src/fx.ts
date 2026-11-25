@@ -3,9 +3,10 @@
 // board. None of it holds up play, and all of it is skipped for a player
 // who asked their device for less motion.
 
-/** How long a tile takes to fly to the tray, and a matched pair to pop. */
+/** How long a tile takes to fly to the tray, rest there, and a matched pair to meet and pop. */
 export const FLY_MS = 300;
-export const POP_MS = 340;
+export const REST_MS = 90;
+export const POP_MS = 380;
 
 const calm = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -38,18 +39,25 @@ export function fly(el: HTMLElement, from: DOMRect) {
   };
 }
 
-/** A matched tile swells, brightens and goes, leaning `lean` (±1) into its twin. */
-export function pop(el: HTMLElement, delay: number, lean: number) {
+/** A matched tile slides `dx` pixels to meet its twin, then swells, brightens and goes. */
+export function pop(el: HTMLElement, dx: number) {
   if (typeof el.animate !== "function" || calm()) return;
-  const meet = `translateX(${lean * 22}%)`;
+  const meet = `translateX(${dx.toFixed(1)}px)`;
+  el.style.zIndex = "6";
   el.animate(
     [
-      { transform: "none", opacity: 1, filter: "brightness(1)" },
-      { transform: `${meet} scale(1.16)`, opacity: 1, filter: "brightness(1.2)", offset: 0.4 },
+      { transform: "none", opacity: 1, filter: "brightness(1)", easing: "ease-in" },
+      { transform: `${meet} scale(1.1)`, opacity: 1, filter: "brightness(1.15)", offset: 0.45, easing: "ease-out" },
       { transform: `${meet} scale(1.5)`, opacity: 0, filter: "brightness(2)" },
     ],
-    { duration: POP_MS, delay, easing: "ease-out", fill: "forwards" },
+    { duration: POP_MS, fill: "forwards" },
   );
+}
+
+/** A tile in the tray closes up a gap: it slides in from `dx` pixels away. */
+export function slide(el: HTMLElement, dx: number) {
+  if (typeof el.animate !== "function" || calm()) return;
+  el.animate([{ transform: `translateX(${dx}px)` }, { transform: "none" }], { duration: 200, easing: "ease-out" });
 }
 
 type Bit = {

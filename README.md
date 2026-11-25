@@ -28,15 +28,16 @@ in it.
   (`src/tilezen.css`, the `tz-carve` filter in `src/themes.tsx`). The
   characters are outlines in `src/glyphs.ts` (from Noto Serif TC, SIL Open
   Font License), so every device draws them alike. A picked tile flies to
-  the tray, a matched pair pops in a puff of petals, a new board is dealt
+  the tray and takes a place there; a matched pair then slides together and
+  pops in a puff of petals, a new board is dealt
   tile by tile and a cleared one rains petals (`src/fx.ts`); all of it is
   skipped for players who ask their device for less motion.
 - **Big, clear tiles**: strong colours on polished light tiles, blocked
   tiles shaded, and a **Large tiles** setting
   for phones and older players (the board scrolls instead of shrinking).
-- **No hurry**: no timer unless the player turns on the clock. Calm,
-  generated music (pentatonic chords and bells, Web Audio) and the sounds
-  of tiles: clacks, a wooden tray, bells on a match. No voices, no audio files.
+- **No hurry**: no timer unless the player turns on the clock. The only
+  sounds are the tiles', made with Web Audio: clacks, a wooden tray, bells on
+  a match. No background music, no voices, no audio files.
 - **Levels**: endless short levels on 16 layouts of our own (Pebble, Stream,
   Lotus, Old Well, Stone Bridge, Moon Gate, Drum Tower, Lantern, Butterfly, Cloud, Pagoda, Folding
   Fan, Far Mountains, Twin Peaks, Courtyard, Mountain Temple), from 14 to 120
@@ -82,7 +83,7 @@ To play it inside dingn while developing, open the
 - `src/themes.tsx`: the tile faces, drawn as SVG.
 - `src/board-view.tsx`, `src/game.tsx`: the board, menu, result and settings.
 - `src/save.ts`: what's saved, on the device and to the player's account.
-- `src/sound.ts`: music and sound effects.
+- `src/sound.ts`: sound effects.
 
 ## Release a new version
 
