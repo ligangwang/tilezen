@@ -504,46 +504,53 @@ function Menu(props: {
   const { t } = useLocale();
   const { reached, saved, dailyDone, theme } = props;
   return (
-    <div className="menu">
-      <div className="logo" aria-hidden="true">
-        <span className="mini-tile" style={{ background: theme.tile }}>
-          <svg viewBox="0 0 62 84">{faceArt(theme.id, 0)}</svg>
-        </span>
-        <span className="mini-tile" style={{ background: theme.tile }}>
-          <svg viewBox="0 0 62 84">{faceArt(theme.id, 31)}</svg>
-        </span>
-      </div>
-      <h1>{t("Tile Zen")}</h1>
-      <p className="tagline">{t("Match pairs of free tiles and clear the board, at your own pace.")}</p>
-      <div className="menu-buttons">
-        <button type="button" className="big primary" onClick={props.onLevel}>
-          {t("Play level {0}", String(reached))}
-        </button>
-        <button type="button" className="big" onClick={props.onDaily}>
-          {t("Daily puzzle")}
-          {dailyDone && <span className="done"> ✓</span>}
-        </button>
-        <button type="button" className="big" onClick={props.onLayouts}>
-          {t("Free play")}
-        </button>
-        <div className="row">
-          <button type="button" className="big" onClick={props.onThemes}>
-            {t("Tile themes")}
-          </button>
-          <button type="button" className="big" onClick={props.onSettings}>
-            {t("Settings")}
-          </button>
+    <div className="menu-wrap">
+      <div className="menu">
+        <div className="logo" aria-hidden="true">
+          {[0, 31, 27].map((face) => (
+            <span key={face} className="mini-tile" style={{ background: theme.tile }}>
+              <svg viewBox="0 0 62 84">{faceArt(theme.id, face)}</svg>
+            </span>
+          ))}
         </div>
+        <h1>{t("Tile Zen")}</h1>
+        <p className="tagline">{t("Match pairs of free tiles and clear the board, at your own pace.")}</p>
+        <div className="menu-buttons">
+          <button type="button" className="big primary" onClick={props.onLevel}>
+            <span className="menu-icon" aria-hidden="true">▶</span>
+            {t("Play level {0}", String(reached))}
+          </button>
+          <div className="row">
+            <button type="button" className="big" onClick={props.onDaily}>
+              <span className="menu-icon" aria-hidden="true">☀</span>
+              {t("Daily puzzle")}
+              {dailyDone && <span className="done"> ✓</span>}
+            </button>
+            <button type="button" className="big" onClick={props.onLayouts}>
+              <span className="menu-icon" aria-hidden="true">❖</span>
+              {t("Free play")}
+            </button>
+          </div>
+          <div className="row">
+            <button type="button" className="big quiet" onClick={props.onThemes}>
+              {t("Tile themes")}
+            </button>
+            <button type="button" className="big quiet" onClick={props.onSettings}>
+              {t("Settings")}
+            </button>
+          </div>
+        </div>
+        <p className="stats">
+          <span>{t("Levels cleared: {0}", String(saved.cleared))}</span>
+          <span>{t("Layouts open: {0} of {1}", String(openLayouts(reached).length), String(LAYOUTS.length))}</span>
+        </p>
+        <details className="how">
+          <summary>{t("How to play")}</summary>
+          <p>{t("Tap a tile to lift it into the tray, then tap its twin and both leave. A tile can be picked when nothing lies on top of it and its left or right side is open.")}</p>
+          <p>{t("The tray holds up to four tiles, so you can lift a tile out of the way to reach one under it.")}</p>
+          <p>{t("Every board can be cleared. Hints, undo and shuffle are always free, and there is no clock unless you turn it on.")}</p>
+        </details>
       </div>
-      <p className="stats">
-        {t("Levels cleared: {0}", String(saved.cleared))} · {t("Layouts open: {0} of {1}", String(openLayouts(reached).length), String(LAYOUTS.length))}
-      </p>
-      <details className="how">
-        <summary>{t("How to play")}</summary>
-        <p>{t("Tap a tile to lift it into the tray, then tap its twin and both leave. A tile can be picked when nothing lies on top of it and its left or right side is open.")}</p>
-        <p>{t("The tray holds up to four tiles, so you can lift a tile out of the way to reach one under it.")}</p>
-        <p>{t("Every board can be cleared. Hints, undo and shuffle are always free, and there is no clock unless you turn it on.")}</p>
-      </details>
     </div>
   );
 }
