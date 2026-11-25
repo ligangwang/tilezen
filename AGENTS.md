@@ -11,6 +11,13 @@ Notes for AI coding agents working on Tile Zen (静心麻将).
   when `version` in `game.json` is new.
 - Bump `version` in `game.json` for every release; dingn refuses a version it
   already has.
+- When the owner says "release": merge the pull request, wait for the upload
+  (`https://dingn.com/api/games/tilezen?v=<version>` answers with it), approve
+  it, and check `https://dingn.com/api/games/tilezen` shows it live. Approve
+  with `POST https://dingn.com/api/admin/games/update` and the JSON body
+  `{"id":"tilezen","action":"set-live","version":"<version>"}`. The owner's
+  review key is saved on their cloud environment and added to requests to
+  dingn.com there; never ask for it in chat or write it down.
 - Save with `sdk.storage` / `sdk.progress`, never `localStorage` or cookies,
   which the sandbox blocks. Keep every URL relative (`base: "./"`).
 - UI strings go through `t()` in English, with translations in
