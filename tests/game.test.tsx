@@ -45,6 +45,11 @@ function mount(sdk: DingnGame, saved: Saved = empty()) {
 /** Plays the board to the end by following hints. */
 async function clearBoard() {
   for (let n = 0; n < 200 && !screen.queryByText("Board cleared"); n++) {
+    // The last pair is seen leaving before the result shows.
+    if (!document.querySelector(".tile:not(.leaving)")) {
+      await screen.findByText("Board cleared");
+      break;
+    }
     fireEvent.click(screen.getByRole("button", { name: /Hint/ }));
     const hinted = document.querySelectorAll(".tile.hinted");
     expect(hinted.length).toBe(2);

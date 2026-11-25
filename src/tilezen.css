@@ -225,10 +225,8 @@ h2 {
   padding: 0;
   border: 0;
   background: none;
-  border-radius: 10%/7%;
-  transition:
-    transform 0.15s ease,
-    opacity 0.3s ease;
+  border-radius: 12%/9%;
+  transition: transform 0.12s ease;
 }
 /* The tile's body: its face, with the thickness showing below and right. */
 .tile::before {
@@ -239,8 +237,10 @@ h2 {
   right: 0;
   bottom: 0;
   border-radius: inherit;
-  background: var(--edge);
-  box-shadow: 1px 2px 4px rgba(0, 0, 0, 0.35);
+  /* Two layers, like a real tile: the pale body, then the coloured back. */
+  background: linear-gradient(135deg, var(--tile) 0 62%, var(--edge) 62% 100%);
+  border: 1px solid rgba(70, 50, 20, 0.45);
+  box-shadow: 2px 3px 5px rgba(0, 0, 0, 0.4);
 }
 /* A tile on a higher layer casts a deeper shadow, so stacks read clearly. */
 .tile.raised::before {
@@ -255,10 +255,18 @@ h2 {
   right: var(--d);
   bottom: var(--d);
   border-radius: inherit;
-  background: var(--tile);
-  border: 1.5px solid rgba(70, 50, 20, 0.55);
+  /* A soft shine from the top left, so a free tile looks polished. */
+  background:
+    linear-gradient(140deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 45%),
+    var(--tile);
+  border: 1.5px solid rgba(70, 50, 20, 0.5);
+  box-shadow: inset -2px -3px 4px rgba(120, 90, 40, 0.16);
   display: block;
   overflow: hidden;
+}
+/* A tile that can be picked answers the pointer. */
+.tile.free:hover {
+  transform: translate(-1px, -2px);
 }
 .tile .face svg {
   width: 100%;
@@ -269,7 +277,7 @@ h2 {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(40, 30, 10, 0.3);
+  background: rgba(40, 30, 10, 0.34);
 }
 .tile.selected {
   transform: translate(-2px, -4px);
@@ -291,10 +299,57 @@ h2 {
     box-shadow: 0 0 0 7px rgba(116, 192, 252, 0.9);
   }
 }
+/* A matched pair glides together (--gx, --gy from board-view.tsx), lights
+   up and goes. LEAVE_MS in game.tsx is this long. */
 .tile.leaving {
-  opacity: 0;
-  transform: translateY(-14px) scale(1.06);
   pointer-events: none;
+  animation: leave 0.42s cubic-bezier(0.3, 0.7, 0.3, 1) forwards;
+}
+.tile.leaving .face {
+  border-color: #f08c00;
+  box-shadow: 0 0 0 3px #ffe066;
+}
+@keyframes leave {
+  55% {
+    opacity: 1;
+    transform: translate(var(--gx), var(--gy)) scale(1.08);
+    filter: brightness(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--gx), var(--gy)) scale(1.3);
+    filter: brightness(1.8);
+  }
+}
+.burst {
+  position: absolute;
+  z-index: 210;
+  width: calc(var(--w) * 2.4);
+  height: calc(var(--w) * 2.4);
+  margin: calc(var(--w) * -1.2) 0 0 calc(var(--w) * -1.2);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 8%, rgba(255, 224, 102, 0.75) 9% 22%, transparent 46%),
+    repeating-conic-gradient(from 10deg, rgba(255, 236, 153, 0.9) 0 4deg, transparent 4deg 30deg);
+  -webkit-mask: radial-gradient(circle, #000 0 30%, transparent 68%);
+  mask: radial-gradient(circle, #000 0 30%, transparent 68%);
+  animation: burst 0.42s ease-out forwards;
+}
+@keyframes burst {
+  0%,
+  45% {
+    opacity: 0;
+    transform: scale(0.3) rotate(0deg);
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1) rotate(25deg);
+  }
 }
 .tile.shake {
   animation: shake 0.35s ease;
@@ -313,6 +368,62 @@ h2 {
   .tile.shake {
     animation: none;
     transition: none;
+  }
+  .tile.leaving {
+    opacity: 0;
+  }
+  .burst,
+  .streak {
+    display: none;
+  }
+}
+
+/* How much of the board is cleared, under the bar at the top. */
+.progress {
+  height: 6px;
+  background: rgba(0, 0, 0, 0.35);
+}
+.progress i {
+  display: block;
+  height: 100%;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(90deg, #ffd43b, #ffe9a8);
+  transition: width 0.4s ease;
+}
+/* Matches in a row, popping in under the bar. */
+.streak {
+  position: absolute;
+  z-index: 250;
+  top: 78px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 16px;
+  border-radius: 999px;
+  background: #ffe9a8;
+  color: #2a2110;
+  font-size: 17px;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  animation: streak 1.6s ease forwards;
+}
+@keyframes streak {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.6);
+  }
+  12% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.12);
+  }
+  20%,
+  75% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px);
   }
 }
 

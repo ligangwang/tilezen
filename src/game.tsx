@@ -32,6 +32,8 @@ type Result = {
   opened: string[];
 };
 type Screen = "menu" | "play" | "layouts" | "themes";
+/** How long a matched pair takes to glide together and go (tilezen.css). */
+const LEAVE_MS = 420;
 
 export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; prefs: Prefs }) {
   const sdk = useDingn();
@@ -54,7 +56,9 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   const [run, setRun] = useState<Run | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [hint, setHint] = useState<[number, number] | null>(null);
-  const [leaving, setLeaving] = useState<number[]>([]);
+  const [leaving, setLeaving] = useState<[number, number][]>([]);
+  // Matches in a row with no wrong tap and no help: only for the fun of it.
+  const [streak, setStreak] = useState(0);
   const [shake, setShake] = useState<number | null>(null);
   const [note, setNote] = useState("");
   const [result, setResult] = useState<Result | null>(null);
@@ -119,6 +123,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     setSelected(null);
     setHint(null);
     setLeaving([]);
+    setStreak(0);
     setResult(null);
     setNote("");
     setScreen("play");
@@ -139,6 +144,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     const s = run.session;
     if (!S.free(s, i)) {
       sound.play("blocked");
+      setStreak(0);
       setShake(i);
       setTimeout(() => setShake((v) => (v === i ? null : v)), 400);
       return;
@@ -150,18 +156,23 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     }
     if (s.faces[selected] !== s.faces[i]) {
       setSelected(i);
+      setStreak(0);
       sound.play("select");
       return;
     }
     const next = S.take(s, selected, i);
     if (!next) return;
-    sound.play("match");
-    setLeaving([selected, i]);
-    setTimeout(() => setLeaving([]), 320);
+    sound.play("match", streak);
+    setStreak(streak + 1);
+    // The pair glides together and goes; a quick player's pairs overlap.
+    const pair: [number, number] = [selected, i];
+    setLeaving((l) => [...l, pair]);
+    setTimeout(() => setLeaving((l) => l.filter((p) => p !== pair)), LEAVE_MS);
     setSelected(null);
     setHint(null);
     update(next);
-    if (S.cleared(next)) finish(run, next);
+    // The last pair is seen leaving before the result covers the board.
+    if (S.cleared(next)) setTimeout(() => void finish(run, next), LEAVE_MS);
   }
 
   function onHint() {
@@ -170,6 +181,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     const pair = S.hint(run.session);
     if (!pair) return;
     sound.play("hint");
+    setStreak(0);
     setHint(pair);
     setSelected(null);
     update(S.withHint(run.session));
@@ -177,20 +189,32 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   function onUndo() {
     tapped();
     if (!run || result || !run.session.history.length) return;
+    setStreak(0);
     setSelected(null);
     setHint(null);
     update(S.undo(run.session));
   }
-  function onShuffle() {
-    tapped();
+  function onShuffle(auto = false) {
+    if (!auto) tapped();
     if (!run || result) return;
     const { session, rewound } = S.shuffle(run.session);
     sound.play("shuffle");
+    setStreak(0);
     setSelected(null);
     setHint(null);
     update(session);
     if (rewound) setNote(t("Stepped back {0} moves so the tiles could be shuffled.", String(rewound)));
+    else if (auto) setNote(t("No more matches, so the tiles were shuffled."));
   }
+  // No pair left to take: the tiles are shuffled for the player after a
+  // moment, so the game keeps moving.
+  const noMatches = !!run && !result && !S.cleared(run.session) && !S.available(run.session).length;
+  useEffect(() => {
+    if (!noMatches) return;
+    const id = setTimeout(() => onShuffle(true), 900);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noMatches, run?.session]);
 
   async function finish(r: Run, session: S.Session) {
     sdk.roundEnded();
@@ -323,6 +347,10 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
               ⚙ <span className="hud-label">{t("Settings")}</span>
             </button>
           </header>
+          {/* How much of the board is cleared. */}
+          <div className="progress" aria-hidden="true">
+            <i style={{ width: `${100 - (100 * S.tilesLeft(run.session)) / run.layout.slots.length}%` }} />
+          </div>
           {locked ? (
             <div className="overlay gate">
               <div className="panel">
@@ -361,10 +389,15 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                 large={prefs.large}
                 onTile={onTile}
               />
-              {!result && (run.session.deadEnd || (!S.cleared(run.session) && !S.available(run.session).length)) && (
+              {!result && run.session.deadEnd && !noMatches && (
                 <div className="stuck" role="status">
-                  <strong>{S.available(run.session).length ? t("This board can't be cleared from here.") : t("No more matches.")}</strong>
+                  <strong>{t("This board can't be cleared from here.")}</strong>
                   <span>{t("Shuffle the tiles, free, or undo a move.")}</span>
+                </div>
+              )}
+              {!result && streak >= 3 && (
+                <div className="streak" key={streak} role="status">
+                  {t("{0} in a row", String(streak))}
                 </div>
               )}
               {note && (
@@ -384,7 +417,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                 <button
                   type="button"
                   className={`tool${!S.cleared(run.session) && (run.session.deadEnd || !S.available(run.session).length) ? " glow" : ""}`}
-                  onClick={onShuffle}
+                  onClick={() => onShuffle()}
                   disabled={!!result}
                 >
                   <span className="tool-icon" aria-hidden="true">⇄</span>

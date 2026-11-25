@@ -144,7 +144,8 @@ export const setSound = (on: boolean) => {
 };
 
 export type Sfx = "select" | "match" | "blocked" | "shuffle" | "hint" | "win";
-export function play(sfx: Sfx) {
+/** `step` raises a match's notes a little with each one in a row. */
+export function play(sfx: Sfx, step = 0) {
   if (!soundOn) return;
   const c = audio();
   if (!c) return;
@@ -155,7 +156,7 @@ export function play(sfx: Sfx) {
       tone(c.sfx, note(7), t, { release: 0.25, gain: 0.12 });
       break;
     case "match": {
-      const d = 7 + Math.floor(Math.random() * 4);
+      const d = 5 + Math.min(step, 7);
       tone(c.sfx, note(d), t, { release: 1.4, gain: 0.16 });
       tone(c.sfx, note(d + 2), t + 0.09, { release: 1.6, gain: 0.13 });
       break;

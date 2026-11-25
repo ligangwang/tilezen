@@ -10,7 +10,7 @@ import { useLocale } from "./dingn";
 /** A tile's height over its width. */
 const TALL = 1.36;
 /** How much of a tile's width each layer lifts it up and to the left. */
-const DEPTH = 0.11;
+const DEPTH = 0.13;
 /** Large tiles are at least this wide, in CSS pixels. */
 export const LARGE_MIN = 66;
 
@@ -19,8 +19,8 @@ type Props = {
   theme: Theme;
   selected: number | null;
   hint: [number, number] | null;
-  /** Tiles just taken off, fading out. */
-  leaving: number[];
+  /** Pairs just taken off: the two glide together, flash and go. */
+  leaving: [number, number][];
   /** A tile that was tapped while blocked, which wiggles. */
   shake: number | null;
   dim: boolean;
@@ -70,9 +70,27 @@ export function BoardView(props: Props) {
     box.current?.querySelector(`[data-tile="${hint[0]}"]`)?.scrollIntoView?.({ block: "nearest", inline: "nearest", behavior: "smooth" });
   }, [hint, scrolls]);
 
+  const at = (i: number) => ({
+    left: (slots[i].x / 2) * w + (maxZ - slots[i].z) * d,
+    top: (slots[i].y / 2) * h + (maxZ - slots[i].z) * d,
+  });
+  // Each leaving tile's way to where it meets its twin: half the gap, less
+  // half a tile so the two end side by side (or stacked, when in a column).
+  const glide = new Map<number, { x: number; y: number }>();
+  for (const [a, b] of leaving) {
+    const pa = at(a);
+    const pb = at(b);
+    const dx = pb.left - pa.left;
+    const dy = pb.top - pa.top;
+    const gapX = Math.abs(dx) >= Math.abs(dy) ? Math.sign(dx) * (w / 2) : 0;
+    const gapY = Math.abs(dx) >= Math.abs(dy) ? 0 : Math.sign(dy) * (h / 2);
+    glide.set(a, { x: dx / 2 - gapX, y: dy / 2 - gapY });
+    glide.set(b, { x: -dx / 2 + gapX, y: -dy / 2 + gapY });
+  }
+
   const order = slots
     .map((s, i) => ({ s, i }))
-    .filter(({ i }) => session.present[i] || leaving.includes(i))
+    .filter(({ i }) => session.present[i] || glide.has(i))
     .sort((a, b) => a.s.z - b.s.z || a.s.y - b.s.y || a.s.x - b.s.x);
 
   return (
@@ -107,12 +125,13 @@ export function BoardView(props: Props) {
               disabled={gone}
               onClick={() => onTile(i)}
               style={{
-                left: (s.x / 2) * w + (maxZ - s.z) * d,
-                top: (s.y / 2) * h + (maxZ - s.z) * d,
+                ...at(i),
                 width: w,
                 height: h,
-                zIndex: s.z * 10 + 1,
+                zIndex: gone ? 200 : s.z * 10 + 1,
                 ["--d" as string]: `${d}px`,
+                ["--gx" as string]: `${glide.get(i)?.x ?? 0}px`,
+                ["--gy" as string]: `${glide.get(i)?.y ?? 0}px`,
               }}
             >
               <span className="face">
@@ -121,6 +140,19 @@ export function BoardView(props: Props) {
                 </svg>
               </span>
             </button>
+          );
+        })}
+        {/* A burst of light where each leaving pair meets. */}
+        {leaving.map(([a, b]) => {
+          const pa = at(a);
+          const pb = at(b);
+          return (
+            <span
+              key={`${a}-${b}`}
+              className="burst"
+              aria-hidden="true"
+              style={{ left: (pa.left + pb.left) / 2 + w / 2, top: (pa.top + pb.top) / 2 + h / 2, ["--w" as string]: `${w}px` }}
+            />
           );
         })}
       </div>
