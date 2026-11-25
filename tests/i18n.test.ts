@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import game from "../game.json" with { type: "json" };
 import { LANGUAGES, PACKS, translate } from "../src/i18n";
-import { THEMES } from "../src/themes";
+import { FACE_NAMES, THEMES } from "../src/themes";
 import { LAYOUTS } from "../src/engine/layouts";
 
 const holes = (s: string) => (s.match(/\{\d+\}/g) ?? []).sort().join();
@@ -22,7 +22,7 @@ test("game.json lists every language there is a pack for, with a title and descr
 });
 
 test("every string the game shows has a translation with the same placeholders", () => {
-  const shown = new Set<string>(THEMES.map((t) => t.name));
+  const shown = new Set<string>([...THEMES.map((t) => t.name), ...FACE_NAMES]);
   for (const file of ["../src/game.tsx", "../src/board-view.tsx"]) {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
     for (const m of source.matchAll(/\bt\(\s*"((?:[^"\\]|\\.)+)"/g)) shown.add(m[1]);
@@ -47,6 +47,7 @@ test("every layout has a name in both languages", () => {
 test("translate fills patterns and falls back to English", () => {
   assert.equal(translate("Hint", "zh-CN"), "提示");
   assert.equal(translate("Level 12", "zh-CN"), "第 12 关");
+  assert.equal(translate("Dots 3", "zh-CN"), "3 筒");
   assert.equal(translate("Hint", "en"), "Hint");
   assert.equal(translate("Hint", "es"), "Hint");
 });

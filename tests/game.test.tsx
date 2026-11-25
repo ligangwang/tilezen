@@ -103,3 +103,26 @@ test("the game speaks Chinese", () => {
   expect(screen.getByRole("button", { name: /提示/ })).toBeTruthy();
   expect(screen.getByText(/卵石/)).toBeTruthy();
 });
+
+test("signing in mid-game keeps the account's progress when it is further on", async () => {
+  const { sdk, calls } = fakeSdk(false);
+  let listener: (p: DingnGame["player"]) => void = () => {};
+  sdk.onPlayer = (l) => ((listener = l), () => {});
+  sdk.progress.load = async () => ({ cleared: 20, calm: 3 });
+  mount(sdk, { ...empty(), cleared: 2 });
+  expect(screen.getByRole("button", { name: "Play level 3" })).toBeTruthy();
+  await act(async () => {
+    sdk.player = { signedIn: true, name: "", avatar: "" };
+    listener(sdk.player);
+  });
+  await waitFor(() => expect(screen.getByRole("button", { name: "Play level 21" })).toBeTruthy());
+  expect(calls.save).toHaveBeenLastCalledWith(expect.objectContaining({ cleared: 20, calm: 3 }));
+});
+
+test("tiles are read out in the player's language", () => {
+  const { sdk } = fakeSdk(false, "zh-CN");
+  mount(sdk);
+  fireEvent.click(screen.getByRole("button", { name: "开始第 1 关" }));
+  const labels = [...document.querySelectorAll(".tile")].map((el) => el.getAttribute("aria-label")!);
+  expect(labels.every((l) => /[一-鿿]/.test(l))).toBe(true);
+});

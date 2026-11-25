@@ -43,6 +43,11 @@ export function BoardView(props: Props) {
     return () => ro?.disconnect();
   }, []);
 
+  const label = (face: number) => {
+    const [name, n] = faceLabel(theme.id, face);
+    return n ? t(name, n) : t(name);
+  };
+
   const slots = session.g.slots;
   const maxX = Math.max(...slots.map((s) => s.x)) + 2;
   const maxY = Math.max(...slots.map((s) => s.y)) + 2;
@@ -97,7 +102,7 @@ export function BoardView(props: Props) {
               type="button"
               data-tile={i}
               className={cls}
-              aria-label={faceLabel(theme.id, session.faces[i]) + (open ? "" : `, ${t("blocked")}`)}
+              aria-label={label(session.faces[i]) + (open ? "" : `, ${t("blocked")}`)}
               aria-pressed={selected === i}
               disabled={gone}
               onClick={() => onTile(i)}

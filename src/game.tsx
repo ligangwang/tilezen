@@ -8,7 +8,7 @@ import { LAYOUTS, openLayouts, type Layout } from "./engine/layouts";
 import * as S from "./engine/session";
 import { badgesFor, BIG_BOARD } from "./badges";
 import { DAILY_COINS, FREE_LEVELS, coinsFor, dailyLayout, daySeed, layoutFor, levelSeed, today } from "./levels";
-import { store, type Prefs, type Saved } from "./save";
+import { loadSaved, merge, store, type Prefs, type Saved } from "./save";
 import { FACE_COUNT, THEMES, faceArt, openThemes, themeById, type Theme } from "./themes";
 import * as sound from "./sound";
 
@@ -40,7 +40,14 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   const layoutName = (l: Layout) => (zh ? l.name.zh : l.name.en);
   const signedIn = sdk.player.signedIn;
 
-  const [saved, setSaved] = useState(initial);
+  const [saved, setSavedState] = useState(initial);
+  // The latest save, so a late answer from dingn never writes an old one.
+  const savedRef = useRef(initial);
+  function commit(next: Saved) {
+    savedRef.current = next;
+    setSavedState(next);
+    void store(sdk, next);
+  }
   const [prefs, setPrefs] = useState(initialPrefs);
   const [screen, setScreen] = useState<Screen>("menu");
   const [settings, setSettings] = useState(false);
@@ -79,9 +86,17 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     }
   }
 
-  // Hand the saved game over when the player signs in mid-game.
+  // When the player signs in mid-game, combine their account's save with
+  // this device's, keeping the better of each, and save that to both.
   useEffect(() => {
-    if (signedIn) void store(sdk, saved);
+    if (!signedIn) return;
+    let active = true;
+    void loadSaved(sdk).then((account) => {
+      if (active) commit(merge(account, savedRef.current));
+    });
+    return () => {
+      active = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn]);
 
@@ -183,6 +198,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     const tiles = r.layout.slots.length;
     const calm = !S.helped(session);
     const seconds = Math.round((Date.now() - r.started) / 1000);
+    const saved = savedRef.current;
     const next: Saved = { ...saved, biggest: Math.max(saved.biggest, tiles) };
     let worth = 0;
     const opened: string[] = [];
@@ -196,28 +212,25 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
       }
     } else if (r.mode === "daily") {
       const first = saved.daily?.day !== r.day;
-      worth = first ? DAILY_COINS : 0;
       if (first) next.dailies = saved.dailies + 1;
       if (calm) next.calm = saved.calm + 1;
-      next.daily = { day: r.day, paid: saved.daily?.day === r.day ? saved.daily.paid : false };
+      next.daily = { day: r.day, paid: !first && !!saved.daily?.paid };
+      worth = next.daily.paid ? 0 : DAILY_COINS;
     } else if (calm) next.calm = saved.calm + 1;
     setResult({ coins: null, worth, calm, seconds, opened });
-    setSaved(next);
-    if (!signedIn) {
-      void store(sdk, next);
-      return;
-    }
+    // Progress is saved at once; coins are paid after, on their own.
+    commit(next);
+    if (!signedIn) return;
     // Coins go to the player's dingn account (and on into their kingdom).
     let paid: number | null = null;
-    if (worth > 0 && !(r.mode === "daily" && next.daily?.paid)) {
+    if (worth > 0) {
       try {
         paid = (await sdk.rewards.earn(worth)).coins;
-        if (r.mode === "daily" && next.daily) next.daily = { ...next.daily, paid: true };
+        const latest = savedRef.current;
+        if (r.mode === "daily" && latest.daily?.day === r.day) commit({ ...latest, daily: { day: r.day, paid: true } });
       } catch {}
     }
     setResult((res) => (res ? { ...res, coins: paid } : res));
-    setSaved({ ...next });
-    void store(sdk, next);
     for (const id of badgesFor(next)) {
       if (unlocked.current.has(id)) continue;
       unlocked.current.add(id);

@@ -268,13 +268,37 @@ export function faceArt(theme: ThemeId, face: number): ReactNode {
   return picture(theme, suit, n);
 }
 
-/** A short spoken name for a face, for screen readers. */
-export function faceLabel(theme: ThemeId, face: number): string {
+const HONOUR_NAMES = ["East", "South", "West", "North", "Red", "Green", "White", "Spring", "Autumn"];
+const SUIT_NAMES: Record<string, string> = {
+  dots: "Dots {0}",
+  sticks: "Sticks {0}",
+  numerals: "Numerals {0}",
+  blossom: "Blossom {0}",
+  leaf: "Leaf {0}",
+  sun: "Sun {0}",
+  drop: "Raindrop {0}",
+  fish: "Fish {0}",
+  shell: "Shell {0}",
+  starfish: "Starfish {0}",
+  wave: "Wave {0}",
+  moon: "Moon {0}",
+  star: "Star {0}",
+  lantern: "Lantern {0}",
+  cloud: "Cloud {0}",
+};
+/** Every English name a tile can be read out with, for the translation packs. */
+export const FACE_NAMES = [...HONOUR_NAMES, ...Object.values(SUIT_NAMES)];
+
+/**
+ * A short spoken name for a face, for screen readers: English text and its
+ * number, to pass through t().
+ */
+export function faceLabel(theme: ThemeId, face: number): [string, string?] {
   const suit = Math.floor(face / 9);
-  const n = (face % 9) + 1;
+  const n = String((face % 9) + 1);
   if (theme === "classic") {
-    if (suit === 3) return ["East", "South", "West", "North", "Red", "Green", "White", "Spring", "Autumn"][n - 1];
-    return `${["Dots", "Sticks", "Numerals"][suit]} ${n}`;
+    if (suit === 3) return [HONOUR_NAMES[Number(n) - 1]];
+    return [SUIT_NAMES[["dots", "sticks", "numerals"][suit]], n];
   }
-  return `${PICTURE_SUITS[theme][suit][0]} ${n}`;
+  return [SUIT_NAMES[PICTURE_SUITS[theme][suit][0]], n];
 }
