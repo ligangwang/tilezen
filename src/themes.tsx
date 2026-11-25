@@ -116,14 +116,17 @@ function numeral(n: number) {
   );
 }
 
-const HAN_FONT = '"Noto Serif SC", "Songti SC", "SimSun", "Noto Sans SC", "PingFang SC", serif';
+// The tiles carry traditional characters, as mahjong tiles do, so the
+// fonts that draw them come first.
+const HAN_FONT =
+  '"Noto Serif TC", "Songti TC", "PMingLiU", "Noto Serif SC", "Songti SC", "SimSun", "Noto Sans TC", "PingFang TC", "Noto Sans SC", "PingFang SC", serif';
 const HONOURS: [string, string][] = [
-  ["东", INK],
+  ["東", INK],
   ["南", INK],
   ["西", INK],
   ["北", INK],
   ["中", RED],
-  ["发", GREEN],
+  ["發", GREEN],
   ["", BLUE],
   ["春", "#a3317a"],
   ["秋", "#c25e00"],
