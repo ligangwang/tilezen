@@ -200,3 +200,39 @@ test("random play keeps a way through where there is one, and a full tray with n
   // The game nearly always still knows a way through after a stray pick.
   assert.ok(planned > picks * 0.7, `a plan after only ${planned} of ${picks} picks`);
 });
+
+test("the score: pairs worth more in a row, help takes points off, a calm clear adds a fifth", () => {
+  let s = S.start(LAYOUTS[0].slots, 36, 7);
+  assert.equal(S.score(s), 0);
+  // Follow the plan to the end: every pair is one more in a row.
+  let pairs = 0;
+  let expected = 0;
+  while (!S.cleared(s)) {
+    const before = s.points;
+    s = S.pick(s, s.plan![0])!;
+    if (s.points > before) {
+      assert.equal(s.points - before, S.PAIR_POINTS + S.STREAK_STEP * Math.min(pairs, S.STREAK_MOST));
+      expected += s.points - before;
+      pairs++;
+    }
+  }
+  assert.equal(pairs, LAYOUTS[0].slots.length / 2);
+  assert.equal(S.score(s), expected + Math.round(expected * S.CALM_BONUS));
+
+  // With help: no calm bonus, the costs come off, and never below nothing.
+  let h = S.withHint(S.start(LAYOUTS[0].slots, 36, 7));
+  assert.equal(S.score(h), 0);
+  h = S.pick(S.pick(h, h.plan![0])!, h.plan![1])!;
+  while (h.points === 0) h = S.pick(h, h.plan![0])!;
+  assert.equal(h.points, S.PAIR_POINTS);
+  assert.equal(S.score(h), S.PAIR_POINTS - S.HELP_COST.hint);
+  assert.equal(S.calmBonus(h), 0);
+  // Taking a pair back gives back its points and costs an undo.
+  const back = S.undo(h);
+  assert.equal(back.points, 0);
+  assert.equal(back.streak, 0);
+  assert.equal(S.helpCost(back), S.HELP_COST.hint + S.HELP_COST.undo);
+  // A wrong tap ends the streak without costing points.
+  assert.equal(S.miss(h).streak, 0);
+  assert.equal(S.miss(h).points, h.points);
+});

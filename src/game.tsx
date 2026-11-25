@@ -30,6 +30,11 @@ type Result = {
   worth: number;
   calm: boolean;
   seconds: number;
+  /** The score and what it is made of: pairs' points, less help, plus the calm bonus. */
+  score: number;
+  points: number;
+  helpCost: number;
+  calmBonus: number;
   /** What clearing this level opened: layouts and themes. */
   opened: string[];
 };
@@ -95,7 +100,17 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     flights.current.clear();
   });
   // Matches in a row with no wrong tap and no help: only for the fun of it.
-  const [streak, setStreak] = useState(0);
+  // Points of pairs that have been picked but have not popped yet: the
+  // score on screen goes up when the pair is seen to go.
+  const [pending, setPending] = useState(0);
+  // Points drifting up from where they were won or lost.
+  const [floats, setFloats] = useState<{ id: number; text: string; minus: boolean; x?: number; y?: number }[]>([]);
+  const floatId = useRef(0);
+  function float(text: string, minus: boolean, x?: number, y?: number) {
+    const id = ++floatId.current;
+    setFloats((l) => [...l, { id, text, minus, x, y }]);
+    setTimeout(() => setFloats((l) => l.filter((f) => f.id !== id)), 1000);
+  }
   const [shake, setShake] = useState<number | null>(null);
   const [note, setNote] = useState("");
   const [result, setResult] = useState<Result | null>(null);
@@ -159,7 +174,8 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     flights.current.clear();
     fx.current?.clear();
     setTrayLeaving([]);
-    setStreak(0);
+    setPending(0);
+    setFloats([]);
     setResult(null);
     setNote("");
     setScreen("play");
@@ -188,7 +204,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     const s = run.session;
     if (!S.free(s, i)) {
       sound.play("blocked");
-      setStreak(0);
+      update(S.miss(s));
       setShake(i);
       setTimeout(() => setShake((v) => (v === i ? null : v)), 400);
       return;
@@ -197,7 +213,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     if (!next) {
       // Free, but the tray is full of other tiles.
       sound.play("blocked");
-      setStreak(0);
+      update(S.miss(s));
       setShake(i);
       setTimeout(() => setShake((v) => (v === i ? null : v)), 400);
       setNote(t("The tray is full. Pick a tile that matches one in it."));
@@ -215,7 +231,8 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
       setTimeout(() => current.current === started && sound.play("land"), FLY_MS);
       return;
     }
-    setStreak(streak + 1);
+    const gain = next.points - s.points;
+    setPending((p) => p + gain);
     // It takes the next place in the tray like any tile, rests a moment,
     // then slides to meet its twin and the pair pops in a puff of petals.
     // A quick player's pairs overlap.
@@ -229,14 +246,18 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     setTimeout(() => current.current === started && sound.play("land"), FLY_MS);
     setTimeout(() => {
       if (current.current !== started) return;
-      sound.play("match", streak);
+      setPending((p) => p - gain);
+      sound.play("match", s.streak);
       const [a, b] = [twin, i].map((id) => playEl.current?.querySelector<HTMLElement>(`[data-tray="${id}"]`));
       const [ra, rb] = [a, b].map((el) => el?.getBoundingClientRect());
       if (!a || !b || !ra?.width || !rb) return;
       const gap = rb.left - ra.left;
       pop(a, gap / 2);
       pop(b, -gap / 2);
-      effects()?.burst(ra.left + gap / 2 + ra.width / 2, ra.top + ra.height / 2, petals(theme));
+      const mid = ra.left + gap / 2 + ra.width / 2;
+      effects()?.burst(mid, ra.top + ra.height / 2, petals(theme));
+      const box = playEl.current!.getBoundingClientRect();
+      float(`+${gain}`, false, mid - box.left, ra.top - box.top);
     }, FLY_MS + REST_MS);
     setTimeout(() => setTrayLeaving((l) => l.filter((x) => !pair.includes(x))), LEAVE_MS);
     // The last pair is seen leaving before the result covers the board.
@@ -249,7 +270,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     const pair = S.hint(run.session);
     if (!pair) return;
     sound.play("hint");
-    setStreak(0);
+    float(`−${S.HELP_COST.hint}`, true);
     setHint(pair);
     update(S.withHint(run.session));
   }
@@ -257,7 +278,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     tapped();
     if (!run || result || S.cleared(run.session) || !run.session.history.length) return;
     sound.play("undo");
-    setStreak(0);
+    float(`−${S.HELP_COST.undo}`, true);
     setHint(null);
     update(S.undo(run.session));
   }
@@ -266,7 +287,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     if (!run || result || S.cleared(run.session)) return;
     const { session, rewound } = S.shuffle(run.session);
     sound.play("shuffle");
-    setStreak(0);
+    float(`−${S.HELP_COST.shuffle}`, true);
     setHint(null);
     update(session);
     if (rewound) setNote(t("Stepped back {0} moves so the tiles could be shuffled.", String(rewound)));
@@ -299,7 +320,17 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     // Left for the menu or another board meanwhile: it still counts, unseen.
     const shown = current.current === r.started;
     if (shown) {
-      setResult({ coins: null, worth, calm, seconds, opened });
+      setResult({
+        coins: null,
+        worth,
+        calm,
+        seconds,
+        opened,
+        score: S.score(session),
+        points: session.points,
+        helpCost: S.helpCost(session),
+        calmBonus: S.calmBonus(session),
+      });
       effects()?.rain(petals(theme));
     }
     // Progress is saved at once; coins are paid after, on their own.
@@ -411,6 +442,17 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
               <span className="hud-label">{t("Settings")}</span>
             </button>
           </header>
+          {!locked && (
+            <div className="score" aria-label={`${t("Score")} ${Math.max(0, S.score(run.session) - pending)}`}>
+              <span>{t("Score")}</span>
+              <strong key={S.score(run.session) - pending}>{count(Math.max(0, S.score(run.session) - pending))}</strong>
+              {floats.filter((f) => f.x === undefined).map((f) => (
+                <em key={f.id} className="float minus">
+                  {f.text}
+                </em>
+              ))}
+            </div>
+          )}
           {/* How much of the board is cleared. */}
           <div className="progress" aria-hidden="true">
             {/* A new board starts the bar empty, without sliding back. */}
@@ -459,9 +501,14 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                   <span>{t("Shuffle the tiles, free, or undo a move.")}</span>
                 </div>
               )}
-              {!result && streak >= 3 && (
-                <div className="streak" key={streak} role="status">
-                  {t("{0} in a row", String(streak))}
+              {floats.filter((f) => f.x !== undefined).map((f) => (
+                <em key={f.id} className="float" style={{ left: f.x, top: f.y }}>
+                  {f.text}
+                </em>
+              ))}
+              {!result && run.session.streak >= 3 && (
+                <div className="streak" key={run.session.streak} role="status">
+                  {t("{0} in a row", String(run.session.streak))}
                 </div>
               )}
               {note && (
@@ -509,6 +556,28 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                 <p className="facts">
                   {t("{0} tiles", String(run.layout.slots.length))} · {clock(result.seconds)}
                 </p>
+                <div className="tally">
+                  <p className="total">
+                    <span>{t("Score")}</span>
+                    <strong>{count(result.score)}</strong>
+                  </p>
+                  <p>
+                    <span>{t("Pairs and streaks")}</span>
+                    <b>{count(result.points)}</b>
+                  </p>
+                  {result.helpCost > 0 && (
+                    <p>
+                      <span>{t("Help used")}</span>
+                      <b className="minus">−{count(result.helpCost)}</b>
+                    </p>
+                  )}
+                  {result.calmBonus > 0 && (
+                    <p>
+                      <span>{t("Calm clear bonus")}</span>
+                      <b className="plus">+{count(result.calmBonus)}</b>
+                    </p>
+                  )}
+                </div>
                 {result.worth > 0 && signedIn && (
                   <p className="coins">
                     <img src="./coin.svg" alt="" width="26" height="26" />
@@ -565,6 +634,8 @@ function MiniTile({ theme, face }: { theme: Theme; face: number }) {
   );
 }
 
+/** A number of points, with its thousands set apart. */
+const count = (n: number) => n.toLocaleString("en-US");
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 
 function Menu(props: {

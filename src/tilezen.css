@@ -565,11 +565,114 @@ h2 {
   background: linear-gradient(90deg, var(--gold-deep), #ffe9a8);
   transition: width 0.4s ease;
 }
+/* The score, under the title, and the points that drift up as they are
+   won (over the tray) or lost (beside the score). */
+.score {
+  position: relative;
+  flex: none;
+  align-self: center;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 7px;
+  padding: 1px 16px 2px;
+  border-radius: 99px;
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.35),
+    0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.score span {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.score strong {
+  display: inline-block;
+  min-width: 2ch;
+  font-family: var(--display);
+  font-size: 22px;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+  animation: bump 0.3s ease-out;
+}
+@keyframes bump {
+  40% {
+    transform: scale(1.22);
+    color: #fff;
+  }
+}
+.float {
+  position: absolute;
+  z-index: 260;
+  transform: translate(-50%, -100%);
+  font-family: var(--display);
+  font-style: normal;
+  font-size: 24px;
+  font-weight: 700;
+  color: #ffe9a8;
+  text-shadow:
+    0 2px 0 rgba(90, 55, 0, 0.7),
+    0 0 12px rgba(255, 200, 60, 0.8);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: float 1s ease-out forwards;
+}
+.float.minus {
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translate(0, -50%);
+  font-size: 18px;
+  color: #ffb3a6;
+  text-shadow: 0 1px 0 rgba(80, 10, 0, 0.7);
+  animation-name: sink;
+}
+@keyframes float {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -60%) scale(0.6);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -100%) scale(1.15);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -230%) scale(1);
+  }
+}
+@keyframes sink {
+  0% {
+    opacity: 0;
+  }
+  15%,
+  65% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 40%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .score strong {
+    animation: none;
+  }
+  .float {
+    display: none;
+  }
+}
 /* Matches in a row, popping in under the bar. */
 .streak {
   position: absolute;
   z-index: 250;
-  top: 84px;
+  top: 118px;
   left: 50%;
   transform: translateX(-50%);
   padding: 4px 18px;
@@ -875,6 +978,46 @@ h2 {
 .facts {
   opacity: 0.7;
   font-size: 15.5px;
+}
+/* The score on the result card, and what it is made of. */
+.tally {
+  margin: 14px 0 12px;
+  padding: 10px 16px 8px;
+  border-radius: 16px;
+  background: rgba(120, 90, 40, 0.09);
+  font-size: 15.5px;
+}
+.tally p {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 3px 0;
+  opacity: 0.85;
+}
+.tally .total {
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(120, 90, 40, 0.22);
+  opacity: 1;
+}
+.tally .total span {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9a7426;
+}
+.tally .total strong {
+  font-family: var(--display);
+  font-size: 34px;
+  line-height: 1.1;
+  color: #1f4d40;
+}
+.tally .minus {
+  color: #b23a2a;
+}
+.tally .plus {
+  color: #2b6a4f;
 }
 .coins {
   display: inline-flex;

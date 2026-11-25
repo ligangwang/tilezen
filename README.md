@@ -38,6 +38,13 @@ in it.
 - **No hurry**: no timer unless the player turns on the clock. The only
   sounds are the tiles', made with Web Audio: clacks, a wooden tray, bells on
   a match. No background music, no voices, no audio files.
+- **Score**: every board keeps a score, shown under the title as it grows.
+  A pair is worth 100 points, and 10 more for each pair cleared in a row
+  before it (up to double); a wrong tap or any help ends the row. A hint
+  takes 40 points off, an undo 30 and a shuffle 150, never below nothing,
+  and a calm clear (no help at all) adds a fifth. The result card shows
+  what the score is made of. The rules are in `src/engine/session.ts`
+  (`score`); nothing is timed.
 - **Levels**: endless short levels on 16 layouts of our own (Pebble, Stream,
   Lotus, Old Well, Stone Bridge, Moon Gate, Drum Tower, Lantern, Butterfly, Cloud, Pagoda, Folding
   Fan, Far Mountains, Twin Peaks, Courtyard, Mountain Temple), from 14 to 120

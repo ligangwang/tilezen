@@ -19,7 +19,7 @@ type Step =
   /** A tile went into the tray. */
   | { kind: "hold"; slot: number; plan: Order | null }
   /** `pair[1]` was picked and left with `pair[0]`, which sat at `at` in the tray. */
-  | { kind: "match"; pair: [number, number]; at: number; plan: Order | null }
+  | { kind: "match"; pair: [number, number]; at: number; plan: Order | null; gain: number }
   | { kind: "shuffle"; faces: number[]; tray: number[]; plan: Order | null };
 
 export type Session = {
@@ -40,7 +40,23 @@ export type Session = {
   hints: number;
   undos: number;
   shuffles: number;
+  /** Points earned by the pairs cleared (see `score` for what help takes off). */
+  points: number;
+  /** Pairs cleared in a row with no wrong tap and no help. */
+  streak: number;
 };
+
+/** A pair's points, and how much more each pair in a row before it adds, up to double. */
+export const PAIR_POINTS = 100;
+export const STREAK_STEP = 10;
+export const STREAK_MOST = 10;
+/**
+ * What each help takes off the score. Help stays free to use, and costs
+ * less than a pair earns, so a player who leans on it still scores.
+ */
+export const HELP_COST = { hint: 40, undo: 30, shuffle: 150 };
+/** A calm clear, with no help at all, is worth this much more of its points. */
+export const CALM_BONUS = 0.2;
 
 /** How long the search may look for a way through after an unplanned pick. */
 const BUDGET = 6000;
@@ -62,6 +78,8 @@ export function start(slots: Slot[], faceCount: number, seed: number, depth = 1)
     hints: 0,
     undos: 0,
     shuffles: 0,
+    points: 0,
+    streak: 0,
   };
 }
 
@@ -73,6 +91,19 @@ export const free = (s: Session, i: number) => isFree(s.g, s.present, i);
 export const available = (s: Session) => matches(s.g, s.present, s.faces);
 /** Whether the player has had any help: a calm clear has none. */
 export const helped = (s: Session) => s.hints + s.undos + s.shuffles > 0;
+
+/** What the help used so far takes off the score. */
+export const helpCost = (s: Session) =>
+  s.hints * HELP_COST.hint + s.undos * HELP_COST.undo + s.shuffles * HELP_COST.shuffle;
+/** The bonus for a board cleared with no help; nothing until then. */
+export const calmBonus = (s: Session) => (cleared(s) && !helped(s) ? Math.round(s.points * CALM_BONUS) : 0);
+/**
+ * The score: the pairs' points, less what help cost, plus the calm bonus
+ * once the board is cleared. Never below nothing.
+ */
+export const score = (s: Session) => Math.max(0, s.points - helpCost(s)) + calmBonus(s);
+/** A wrong tap (a blocked tile, or one the full tray can't take) ends the streak. */
+export const miss = (s: Session): Session => (s.streak ? { ...s, streak: 0 } : s);
 /** The tile in the tray with the face of tile `i`, if there is one. */
 export const twinInTray = (s: Session, i: number) => s.tray.find((j) => s.faces[j] === s.faces[i]);
 /** Whether tile `i` can be picked now: free, and the tray takes it. */
@@ -112,14 +143,18 @@ export function pick(s: Session, i: number): Session | null {
   present[i] = false;
   const twin = twinInTray(s, i);
   const tray = twin === undefined ? [...s.tray, i] : s.tray.filter((j) => j !== twin);
+  // Each pair in a row is worth a little more than the one before.
+  const gain = twin === undefined ? 0 : PAIR_POINTS + STREAK_STEP * Math.min(s.streak, STREAK_MOST);
   const step: Step =
     twin === undefined
       ? { kind: "hold", slot: i, plan: s.plan }
-      : { kind: "match", pair: [twin, i], at: s.tray.indexOf(twin), plan: s.plan };
+      : { kind: "match", pair: [twin, i], at: s.tray.indexOf(twin), plan: s.plan, gain };
   return {
     ...s,
     present,
     tray,
+    points: s.points + gain,
+    streak: twin === undefined ? s.streak : s.streak + 1,
     plan: planAfter(s, i, present, tray),
     deadEnd: noPick(s.g, present, s.faces, tray),
     history: [...s.history, step],
@@ -154,8 +189,10 @@ export function undo(s: Session, counted = true): Session {
     present[last.pair[1]] = true;
     tray = [...s.tray.slice(0, last.at), last.pair[0], ...s.tray.slice(last.at)];
   }
+  // A pair taken back gives back its points, and the streak starts again.
+  const points = s.points - (last.kind === "match" ? last.gain : 0);
   // The plan before the move still works: the board is as it was then.
-  return { ...s, faces, present, tray, plan: last.plan, deadEnd: noPick(s.g, present, faces, tray), history, undos };
+  return { ...s, faces, present, tray, plan: last.plan, deadEnd: noPick(s.g, present, faces, tray), history, undos, points, streak: 0 };
 }
 
 /**
@@ -179,6 +216,7 @@ export function shuffle(s: Session): { session: Session; rewound: number } {
         plan: dealt.order,
         deadEnd: false,
         shuffles: cur.shuffles + 1,
+        streak: 0,
         history: [...cur.history, { kind: "shuffle", faces: cur.faces, tray: cur.tray, plan: cur.plan }],
       };
       return { session, rewound };
@@ -217,4 +255,4 @@ export function hint(s: Session): number[] | null {
   const pair = available(s)[0];
   return pair ? [pair[1], pair[0]] : null;
 }
-export const withHint = (s: Session): Session => ({ ...s, hints: s.hints + 1 });
+export const withHint = (s: Session): Session => ({ ...s, hints: s.hints + 1, streak: 0 });
