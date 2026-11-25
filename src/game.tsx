@@ -12,7 +12,7 @@ import { loadSaved, merge, store, type Prefs, type Saved } from "./save";
 import { FACE_COUNT, THEMES, TileDefs, faceArt, faceLabel, openThemes, themeById, type Theme } from "./themes";
 import * as sound from "./sound";
 import { Icon } from "./icons";
-import { FLY_MS, POP_MS, createFx, fly, pop, type Fx } from "./fx";
+import { FLY_MS, POP_MS, REST_MS, createFx, fly, pop, slide, type Fx } from "./fx";
 
 type Mode = "level" | "daily" | "free";
 type Run = {
@@ -34,8 +34,13 @@ type Result = {
   opened: string[];
 };
 type Screen = "menu" | "play" | "layouts" | "themes";
-/** How long a matched tile takes to fly to its twin in the tray, and the pair to pop. */
-const LEAVE_MS = FLY_MS + POP_MS;
+/** How long a matched tile takes to fly to the tray, and the pair to meet and pop. */
+const LEAVE_MS = FLY_MS + REST_MS + POP_MS;
+/**
+ * A matched tile on its way out, still shown in the tray: at place `slot`,
+ * or with `slot` null (the tray was full) half over its twin at place `at`.
+ */
+type Leaving = { id: number; face: number; slot: number | null; at: number };
 /** The colours of the petals a theme throws. */
 const petals = (theme: Theme) => [theme.back, "#ff9db5", "#ffd76a", "#fff7e0"];
 
@@ -59,9 +64,9 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   const [settings, setSettings] = useState(false);
   const [run, setRun] = useState<Run | null>(null);
   const [hint, setHint] = useState<number[] | null>(null);
-  // A matched pair on its way out, over the tray: the twin that waited at
-  // place `at`, and the tile that flies in from the board to meet it.
-  const [trayLeaving, setTrayLeaving] = useState<{ id: number; face: number; at: number; flies: boolean }[]>([]);
+  // Matched pairs on their way out: they keep their places in the tray
+  // until they have met and popped.
+  const [trayLeaving, setTrayLeaving] = useState<Leaving[]>([]);
   // Where each tile just picked left the board, until it has been flown in.
   const flights = useRef(new Map<number, DOMRect>());
   const playEl = useRef<HTMLDivElement>(null);
@@ -71,14 +76,22 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     if (fx.current?.canvas !== fxCanvas.current) fx.current = fxCanvas.current && createFx(fxCanvas.current);
     return fx.current;
   }
-  // Once the tray is drawn with a picked tile in it, fly the tile there.
+  // Where each tile in the tray was drawn last, to slide it when it moves up.
+  const places = useRef(new Map<string, number>());
+  // Once the tray is drawn with a picked tile in it, fly the tile there;
+  // and when a pair has gone, slide the tiles after it into the gap.
   useLayoutEffect(() => {
-    for (const [id, from] of flights.current) {
-      const el = playEl.current?.querySelector<HTMLElement>(`[data-fly="${id}"]`);
-      if (!el) continue;
-      fly(el, from);
-      if (el.classList.contains("gone")) pop(el, FLY_MS, -1);
+    const root = playEl.current;
+    const now = new Map<string, number>();
+    for (const el of root?.querySelectorAll<HTMLElement>("[data-tray]") ?? []) {
+      const id = el.dataset.tray!;
+      now.set(id, el.offsetLeft);
+      const from = flights.current.get(Number(id));
+      const was = places.current.get(id);
+      if (from) fly(el, from);
+      else if (was !== undefined && was !== el.offsetLeft) slide(el, was - el.offsetLeft);
     }
+    places.current = now;
     flights.current.clear();
   });
   // Matches in a row with no wrong tap and no help: only for the fun of it.
@@ -203,23 +216,28 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
       return;
     }
     setStreak(streak + 1);
-    // It lands beside its twin, and the pair pops in a puff of petals; a
-    // quick player's pairs overlap.
+    // It takes the next place in the tray like any tile, rests a moment,
+    // then slides to meet its twin and the pair pops in a puff of petals.
+    // A quick player's pairs overlap.
     const twin = s.tray.find((j) => !next.tray.includes(j))!;
     const at = s.tray.indexOf(twin);
-    const pair = [
-      { id: twin, face: s.faces[twin], at, flies: false },
-      { id: i, face: s.faces[i], at, flies: true },
+    const pair: Leaving[] = [
+      { id: twin, face: s.faces[twin], slot: at, at },
+      { id: i, face: s.faces[i], slot: s.tray.length < S.TRAY ? s.tray.length : null, at },
     ];
     setTrayLeaving((l) => [...l, ...pair]);
+    setTimeout(() => current.current === started && sound.play("land"), FLY_MS);
     setTimeout(() => {
       if (current.current !== started) return;
       sound.play("match", streak);
-      const waiting = playEl.current?.querySelector<HTMLElement>(`[data-gone="${twin}"]`);
-      const box = waiting?.getBoundingClientRect();
-      if (waiting) pop(waiting, 0, 1);
-      if (box?.width) effects()?.burst(box.right, box.top + box.height / 2, petals(theme));
-    }, FLY_MS);
+      const [a, b] = [twin, i].map((id) => playEl.current?.querySelector<HTMLElement>(`[data-tray="${id}"]`));
+      const [ra, rb] = [a, b].map((el) => el?.getBoundingClientRect());
+      if (!a || !b || !ra?.width || !rb) return;
+      const gap = rb.left - ra.left;
+      pop(a, gap / 2);
+      pop(b, -gap / 2);
+      effects()?.burst(ra.left + gap / 2 + ra.width / 2, ra.top + ra.height / 2, petals(theme));
+    }, FLY_MS + REST_MS);
     setTimeout(() => setTrayLeaving((l) => l.filter((x) => !pair.includes(x))), LEAVE_MS);
     // The last pair is seen leaving before the result covers the board.
     if (S.cleared(next)) setTimeout(() => void finish(run, next), LEAVE_MS);
@@ -706,7 +724,7 @@ function Tray({
   session: S.Session;
   theme: Theme;
   hint: number[] | null;
-  leaving: { id: number; face: number; at: number; flies: boolean }[];
+  leaving: Leaving[];
 }) {
   const { t } = useLocale();
   const label = (face: number) => {
@@ -723,29 +741,33 @@ function Tray({
       </span>
     </>
   );
+  // The places in order: the tiles waiting, with each matched tile still
+  // in the place it had until its pair has gone.
+  const places: ({ id: number; gone?: Leaving })[] = session.tray.map((id) => ({ id }));
+  for (const g of [...leaving].sort((x, y) => (x.slot ?? 0) - (y.slot ?? 0)))
+    if (g.slot !== null) places.splice(Math.min(g.slot, places.length), 0, { id: g.id, gone: g });
+  const over = leaving.filter((g) => g.slot === null);
   return (
     <ul
       className={`tray${session.tray.length >= S.TRAY ? " full" : ""}`}
       aria-label={t("Tray: {0} of {1} places taken", String(session.tray.length), String(S.TRAY))}
     >
-      {Array.from({ length: S.TRAY }, (_, k) => {
-        const i = session.tray[k];
-        return i === undefined ? (
-          <li key={`empty-${k}`} className="tray-place" aria-hidden="true" />
-        ) : (
-          <li key={i} className={`tray-place held${hint?.includes(i) ? " hinted" : ""}`} data-tray={i} data-fly={i} aria-label={label(session.faces[i])}>
-            {face(session.faces[i])}
+      {places.map(({ id, gone }) =>
+        gone ? (
+          <li key={id} className="tray-place held gone" data-tray={id} aria-hidden="true">
+            {face(gone.face)}
           </li>
-        );
-      })}
-      {leaving.map((g) => (
-        <li
-          key={`gone-${g.id}`}
-          className={`tray-place held gone${g.flies ? " flies" : ""}`}
-          aria-hidden="true"
-          style={{ ["--at" as string]: g.at }}
-          {...(g.flies ? { "data-fly": g.id } : { "data-gone": g.id })}
-        >
+        ) : (
+          <li key={id} className={`tray-place held${hint?.includes(id) ? " hinted" : ""}`} data-tray={id} aria-label={label(session.faces[id])}>
+            {face(session.faces[id])}
+          </li>
+        ),
+      )}
+      {Array.from({ length: Math.max(0, S.TRAY - places.length) }, (_, k) => (
+        <li key={`empty-${k}`} className="tray-place" aria-hidden="true" />
+      ))}
+      {over.map((g) => (
+        <li key={g.id} className="tray-place held gone over" data-tray={g.id} aria-hidden="true" style={{ ["--at" as string]: g.at }}>
           {face(g.face)}
         </li>
       ))}

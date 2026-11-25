@@ -28,7 +28,8 @@ in it.
   (`src/tilezen.css`, the `tz-carve` filter in `src/themes.tsx`). The
   characters are outlines in `src/glyphs.ts` (from Noto Serif TC, SIL Open
   Font License), so every device draws them alike. A picked tile flies to
-  the tray, a matched pair pops in a puff of petals, a new board is dealt
+  the tray and takes a place there; a matched pair then slides together and
+  pops in a puff of petals, a new board is dealt
   tile by tile and a cleared one rains petals (`src/fx.ts`); all of it is
   skipped for players who ask their device for less motion.
 - **Big, clear tiles**: strong colours on polished light tiles, blocked
