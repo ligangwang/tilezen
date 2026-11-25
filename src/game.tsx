@@ -9,7 +9,7 @@ import * as S from "./engine/session";
 import { badgesFor, BIG_BOARD } from "./badges";
 import { DAILY_COINS, FREE_LEVELS, coinsFor, dailyLayout, daySeed, layoutFor, levelSeed, today } from "./levels";
 import { loadSaved, merge, store, type Prefs, type Saved } from "./save";
-import { FACE_COUNT, THEMES, faceArt, openThemes, themeById, type Theme } from "./themes";
+import { FACE_COUNT, THEMES, faceArt, faceLabel, openThemes, themeById, type Theme } from "./themes";
 import * as sound from "./sound";
 
 type Mode = "level" | "daily" | "free";
@@ -54,9 +54,10 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   const [screen, setScreen] = useState<Screen>("menu");
   const [settings, setSettings] = useState(false);
   const [run, setRun] = useState<Run | null>(null);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [hint, setHint] = useState<[number, number] | null>(null);
-  const [leaving, setLeaving] = useState<[number, number][]>([]);
+  const [hint, setHint] = useState<number[] | null>(null);
+  const [leaving, setLeaving] = useState<number[]>([]);
+  // Tiles just taken out of the tray with their twins, lighting up as they go.
+  const [trayLeaving, setTrayLeaving] = useState<{ id: number; face: number; at: number }[]>([]);
   // Matches in a row with no wrong tap and no help: only for the fun of it.
   const [streak, setStreak] = useState(0);
   const [shake, setShake] = useState<number | null>(null);
@@ -120,9 +121,9 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
 
   function begin(mode: Mode, level: number, layout: Layout, seed: number) {
     setRun({ mode, level, day, layout, session: S.start(layout.slots, FACE_COUNT, seed), started: Date.now() });
-    setSelected(null);
     setHint(null);
     setLeaving([]);
+    setTrayLeaving([]);
     setStreak(0);
     setResult(null);
     setNote("");
@@ -149,28 +150,34 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
       setTimeout(() => setShake((v) => (v === i ? null : v)), 400);
       return;
     }
-    if (selected === null || selected === i) {
-      setSelected(selected === i ? null : i);
-      if (selected !== i) sound.play("select");
+    const next = S.pick(s, i);
+    if (!next) {
+      // Free, but the tray is full of other tiles.
+      sound.play("blocked");
+      setStreak(0);
+      setShake(i);
+      setTimeout(() => setShake((v) => (v === i ? null : v)), 400);
+      setNote(t("The tray is full. Pick a tile that matches one in it."));
       return;
     }
-    if (s.faces[selected] !== s.faces[i]) {
-      setSelected(i);
-      setStreak(0);
+    setHint(null);
+    update(next);
+    if (next.tray.length > s.tray.length) {
+      // It waits in the tray for its twin.
       sound.play("select");
       return;
     }
-    const next = S.take(s, selected, i);
-    if (!next) return;
     sound.play("match", streak);
     setStreak(streak + 1);
-    // The pair glides together and goes; a quick player's pairs overlap.
-    const pair: [number, number] = [selected, i];
-    setLeaving((l) => [...l, pair]);
-    setTimeout(() => setLeaving((l) => l.filter((p) => p !== pair)), LEAVE_MS);
-    setSelected(null);
-    setHint(null);
-    update(next);
+    // The tile and its twin in the tray light up and go; a quick player's pairs overlap.
+    const twin = s.tray.find((j) => !next.tray.includes(j))!;
+    const gone = { id: twin, face: s.faces[twin], at: s.tray.indexOf(twin) };
+    setLeaving((l) => [...l, i]);
+    setTrayLeaving((l) => [...l, gone]);
+    setTimeout(() => {
+      setLeaving((l) => l.filter((x) => x !== i));
+      setTrayLeaving((l) => l.filter((x) => x !== gone));
+    }, LEAVE_MS);
     // The last pair is seen leaving before the result covers the board.
     if (S.cleared(next)) setTimeout(() => void finish(run, next), LEAVE_MS);
   }
@@ -183,39 +190,25 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     sound.play("hint");
     setStreak(0);
     setHint(pair);
-    setSelected(null);
     update(S.withHint(run.session));
   }
   function onUndo() {
     tapped();
     if (!run || result || !run.session.history.length) return;
     setStreak(0);
-    setSelected(null);
     setHint(null);
     update(S.undo(run.session));
   }
-  function onShuffle(auto = false) {
-    if (!auto) tapped();
+  function onShuffle() {
+    tapped();
     if (!run || result) return;
     const { session, rewound } = S.shuffle(run.session);
     sound.play("shuffle");
     setStreak(0);
-    setSelected(null);
     setHint(null);
     update(session);
     if (rewound) setNote(t("Stepped back {0} moves so the tiles could be shuffled.", String(rewound)));
-    else if (auto) setNote(t("No more matches, so the tiles were shuffled."));
   }
-  // No pair left to take: the tiles are shuffled for the player after a
-  // moment, so the game keeps moving.
-  const noMatches = !!run && !result && !S.cleared(run.session) && !S.available(run.session).length;
-  useEffect(() => {
-    if (!noMatches) return;
-    const id = setTimeout(() => onShuffle(true), 900);
-    return () => clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [noMatches, run?.session]);
-
   async function finish(r: Run, session: S.Session) {
     sdk.roundEnded();
     sound.play("win");
@@ -381,7 +374,6 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
               <BoardView
                 session={run.session}
                 theme={theme}
-                selected={selected}
                 hint={hint}
                 leaving={leaving}
                 shake={shake}
@@ -389,9 +381,9 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                 large={prefs.large}
                 onTile={onTile}
               />
-              {!result && run.session.deadEnd && !noMatches && (
+              {!result && run.session.deadEnd && (
                 <div className="stuck" role="status">
-                  <strong>{t("This board can't be cleared from here.")}</strong>
+                  <strong>{t("The tray is full and no free tile matches it.")}</strong>
                   <span>{t("Shuffle the tiles, free, or undo a move.")}</span>
                 </div>
               )}
@@ -405,6 +397,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                   {note}
                 </div>
               )}
+              <Tray session={run.session} theme={theme} hint={hint} leaving={trayLeaving} />
               <footer className="toolbar">
                 <button type="button" className="tool" onClick={onHint} disabled={!!result}>
                   <span className="tool-icon" aria-hidden="true">💡</span>
@@ -416,7 +409,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                 </button>
                 <button
                   type="button"
-                  className={`tool${!S.cleared(run.session) && (run.session.deadEnd || !S.available(run.session).length) ? " glow" : ""}`}
+                  className={`tool${run.session.deadEnd ? " glow" : ""}`}
                   onClick={() => onShuffle()}
                   disabled={!!result}
                 >
@@ -532,7 +525,8 @@ function Menu(props: {
       </p>
       <details className="how">
         <summary>{t("How to play")}</summary>
-        <p>{t("Tap two matching tiles to take them off. A tile can be taken when nothing lies on top of it and its left or right side is open.")}</p>
+        <p>{t("Tap a tile to lift it into the tray, then tap its twin and both leave. A tile can be picked when nothing lies on top of it and its left or right side is open.")}</p>
+        <p>{t("The tray holds up to four tiles, so you can lift a tile out of the way to reach one under it.")}</p>
         <p>{t("Every board can be cleared. Hints, undo and shuffle are always free, and there is no clock unless you turn it on.")}</p>
       </details>
     </div>
@@ -616,5 +610,58 @@ function Settings({ prefs, setPref, onClose }: { prefs: Prefs; setPref: <K exten
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * The tray under the board: the tiles the player picked whose twins are
+ * still to come, with an empty place for each tile it can still take. A
+ * tile taken out with its twin lights up over its place as it goes.
+ */
+function Tray({
+  session,
+  theme,
+  hint,
+  leaving,
+}: {
+  session: S.Session;
+  theme: Theme;
+  hint: number[] | null;
+  leaving: { id: number; face: number; at: number }[];
+}) {
+  const { t } = useLocale();
+  const label = (face: number) => {
+    const [name, n] = faceLabel(theme.id, face);
+    return n ? t(name, n) : t(name);
+  };
+  const face = (f: number) => (
+    <span className="face">
+      <svg viewBox="0 0 62 84" aria-hidden="true">
+        {faceArt(theme.id, f)}
+      </svg>
+    </span>
+  );
+  return (
+    <ul
+      className={`tray${session.tray.length >= S.TRAY ? " full" : ""}`}
+      aria-label={t("Tray: {0} of {1} places taken", String(session.tray.length), String(S.TRAY))}
+      style={{ ["--tile" as string]: theme.tile, ["--edge" as string]: theme.edge }}
+    >
+      {Array.from({ length: S.TRAY }, (_, k) => {
+        const i = session.tray[k];
+        return i === undefined ? (
+          <li key={`empty-${k}`} className="tray-place" aria-hidden="true" />
+        ) : (
+          <li key={i} className={`tray-place held${hint?.includes(i) ? " hinted" : ""}`} data-tray={i} aria-label={label(session.faces[i])}>
+            {face(session.faces[i])}
+          </li>
+        );
+      })}
+      {leaving.map((g) => (
+        <li key={`gone-${g.id}`} className="tray-place held gone" aria-hidden="true" style={{ ["--at" as string]: g.at }}>
+          {face(g.face)}
+        </li>
+      ))}
+    </ul>
   );
 }

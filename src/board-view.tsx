@@ -17,10 +17,9 @@ export const LARGE_MIN = 66;
 type Props = {
   session: Session;
   theme: Theme;
-  selected: number | null;
-  hint: [number, number] | null;
-  /** Pairs just taken off: the two glide together, flash and go. */
-  leaving: [number, number][];
+  hint: number[] | null;
+  /** Tiles just taken off with their twins from the tray: each lights up and goes. */
+  leaving: number[];
   /** A tile that was tapped while blocked, which wiggles. */
   shake: number | null;
   dim: boolean;
@@ -29,7 +28,7 @@ type Props = {
 };
 
 export function BoardView(props: Props) {
-  const { session, theme, selected, hint, leaving, shake, dim, large, onTile } = props;
+  const { session, theme, hint, leaving, shake, dim, large, onTile } = props;
   const { t } = useLocale();
   const box = useRef<HTMLDivElement>(null);
   const [space, setSpace] = useState({ w: 360, h: 480 });
@@ -67,30 +66,16 @@ export function BoardView(props: Props) {
   // Bring a hinted tile into view when the board scrolls.
   useEffect(() => {
     if (!hint || !scrolls) return;
-    box.current?.querySelector(`[data-tile="${hint[0]}"]`)?.scrollIntoView?.({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    box.current?.querySelector(`[data-tile="${hint[hint.length - 1]}"]`)?.scrollIntoView?.({ block: "nearest", inline: "nearest", behavior: "smooth" });
   }, [hint, scrolls]);
 
   const at = (i: number) => ({
     left: (slots[i].x / 2) * w + (maxZ - slots[i].z) * d,
     top: (slots[i].y / 2) * h + (maxZ - slots[i].z) * d,
   });
-  // Each leaving tile's way to where it meets its twin: half the gap, less
-  // half a tile so the two end side by side (or stacked, when in a column).
-  const glide = new Map<number, { x: number; y: number }>();
-  for (const [a, b] of leaving) {
-    const pa = at(a);
-    const pb = at(b);
-    const dx = pb.left - pa.left;
-    const dy = pb.top - pa.top;
-    const gapX = Math.abs(dx) >= Math.abs(dy) ? Math.sign(dx) * (w / 2) : 0;
-    const gapY = Math.abs(dx) >= Math.abs(dy) ? 0 : Math.sign(dy) * (h / 2);
-    glide.set(a, { x: dx / 2 - gapX, y: dy / 2 - gapY });
-    glide.set(b, { x: -dx / 2 + gapX, y: -dy / 2 + gapY });
-  }
-
   const order = slots
     .map((s, i) => ({ s, i }))
-    .filter(({ i }) => session.present[i] || glide.has(i))
+    .filter(({ i }) => session.present[i] || leaving.includes(i))
     .sort((a, b) => a.s.z - b.s.z || a.s.y - b.s.y || a.s.x - b.s.x);
 
   return (
@@ -107,7 +92,6 @@ export function BoardView(props: Props) {
             s.z > 0 ? "raised" : "",
             open ? "free" : "blocked",
             dim && !open && !gone ? "dim" : "",
-            selected === i ? "selected" : "",
             hint && hint.includes(i) ? "hinted" : "",
             gone ? "leaving" : "",
             shake === i ? "shake" : "",
@@ -121,7 +105,6 @@ export function BoardView(props: Props) {
               data-tile={i}
               className={cls}
               aria-label={label(session.faces[i]) + (open ? "" : `, ${t("blocked")}`)}
-              aria-pressed={selected === i}
               disabled={gone}
               onClick={() => onTile(i)}
               style={{
@@ -130,8 +113,6 @@ export function BoardView(props: Props) {
                 height: h,
                 zIndex: gone ? 200 : s.z * 10 + 1,
                 ["--d" as string]: `${d}px`,
-                ["--gx" as string]: `${glide.get(i)?.x ?? 0}px`,
-                ["--gy" as string]: `${glide.get(i)?.y ?? 0}px`,
               }}
             >
               <span className="face">
@@ -142,19 +123,15 @@ export function BoardView(props: Props) {
             </button>
           );
         })}
-        {/* A burst of light where each leaving pair meets. */}
-        {leaving.map(([a, b]) => {
-          const pa = at(a);
-          const pb = at(b);
-          return (
-            <span
-              key={`${a}-${b}`}
-              className="burst"
-              aria-hidden="true"
-              style={{ left: (pa.left + pb.left) / 2 + w / 2, top: (pa.top + pb.top) / 2 + h / 2, ["--w" as string]: `${w}px` }}
-            />
-          );
-        })}
+        {/* A burst of light where each leaving tile was. */}
+        {leaving.map((i) => (
+          <span
+            key={i}
+            className="burst"
+            aria-hidden="true"
+            style={{ left: at(i).left + w / 2, top: at(i).top + h / 2, ["--w" as string]: `${w}px` }}
+          />
+        ))}
       </div>
     </div>
   );

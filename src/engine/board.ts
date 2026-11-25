@@ -41,6 +41,18 @@ export function geometry(slots: Slot[]): Geometry {
   return { slots, above, under, left, right };
 }
 
+/**
+ * The layout with the tiles in `lifted` picked up off it: they touch nothing
+ * and nothing touches them, so each counts as free and blocks no other tile.
+ * This is the board as the rules see it while those tiles wait in the tray.
+ */
+export function lift(g: Geometry, lifted: number[]): Geometry {
+  if (!lifted.length) return g;
+  const up = new Set(lifted);
+  const keep = (lists: number[][]) => lists.map((list, i) => (up.has(i) ? [] : list.filter((j) => !up.has(j))));
+  return { slots: g.slots, above: keep(g.above), under: keep(g.under), left: keep(g.left), right: keep(g.right) };
+}
+
 /** Whether the tile in slot `i` can be picked: nothing on it, and one side open. */
 export function isFree(g: Geometry, present: boolean[], i: number): boolean {
   if (!present[i]) return false;

@@ -3,6 +3,11 @@
 A calm tile-matching solitaire for [dingn](https://dingn.com): match pairs of
 free tiles to clear the board. Play it at <https://dingn.com/play/tilezen/>.
 
+A picked tile lifts into a tray that holds four; picking its twin takes both
+away. Lifting a tile frees what it was blocking, so the tray is how a player
+reaches a twin that is buried. A full tray takes only a tile that matches one
+in it.
+
 - **Rules**: tap two tiles with the same face to take them off. A tile can be
   taken when nothing lies on top of it and its left or right side is open.
 - **Every deal can be cleared.** A board is dealt by playing it with blank
