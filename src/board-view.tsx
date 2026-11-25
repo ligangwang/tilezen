@@ -17,8 +17,7 @@ export const LARGE_MIN = 66;
 type Props = {
   session: Session;
   theme: Theme;
-  selected: number | null;
-  hint: [number, number] | null;
+  hint: number[] | null;
   /** Tiles just taken off, fading out. */
   leaving: number[];
   /** A tile that was tapped while blocked, which wiggles. */
@@ -29,7 +28,7 @@ type Props = {
 };
 
 export function BoardView(props: Props) {
-  const { session, theme, selected, hint, leaving, shake, dim, large, onTile } = props;
+  const { session, theme, hint, leaving, shake, dim, large, onTile } = props;
   const { t } = useLocale();
   const box = useRef<HTMLDivElement>(null);
   const [space, setSpace] = useState({ w: 360, h: 480 });
@@ -67,7 +66,7 @@ export function BoardView(props: Props) {
   // Bring a hinted tile into view when the board scrolls.
   useEffect(() => {
     if (!hint || !scrolls) return;
-    box.current?.querySelector(`[data-tile="${hint[0]}"]`)?.scrollIntoView?.({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    box.current?.querySelector(`[data-tile="${hint[hint.length - 1]}"]`)?.scrollIntoView?.({ block: "nearest", inline: "nearest", behavior: "smooth" });
   }, [hint, scrolls]);
 
   const order = slots
@@ -89,7 +88,6 @@ export function BoardView(props: Props) {
             s.z > 0 ? "raised" : "",
             open ? "free" : "blocked",
             dim && !open && !gone ? "dim" : "",
-            selected === i ? "selected" : "",
             hint && hint.includes(i) ? "hinted" : "",
             gone ? "leaving" : "",
             shake === i ? "shake" : "",
@@ -103,7 +101,6 @@ export function BoardView(props: Props) {
               data-tile={i}
               className={cls}
               aria-label={label(session.faces[i]) + (open ? "" : `, ${t("blocked")}`)}
-              aria-pressed={selected === i}
               disabled={gone}
               onClick={() => onTile(i)}
               style={{

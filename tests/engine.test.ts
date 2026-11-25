@@ -99,9 +99,14 @@ test("undo puts the last pair back, and shuffle can be undone", () => {
   const [a, b] = S.hint(start)!;
   const after = S.take(start, a, b)!;
   assert.equal(S.tilesLeft(after), S.tilesLeft(start) - 2);
-  const back = S.undo(after);
+  // One undo per pick: the second tile goes back first, then the first.
+  const half = S.undo(after);
+  assert.deepEqual(half.tray, [a]);
+  assert.equal(S.tilesLeft(half), S.tilesLeft(start));
+  const back = S.undo(half);
   assert.deepEqual(back.present, start.present);
-  assert.equal(back.undos, 1);
+  assert.deepEqual(back.tray, []);
+  assert.equal(back.undos, 2);
   assert.ok(S.helped(back));
   const { session: shuffled } = S.shuffle(after);
   assert.equal(shuffled.shuffles, 1);
@@ -109,27 +114,78 @@ test("undo puts the last pair back, and shuffle can be undone", () => {
   assert.deepEqual(S.undo(shuffled).faces, after.faces);
 });
 
-test("a dead end is spotted, and a shuffle always leads to a board that can be cleared", () => {
-  // Big boards have four of some faces, so random play can paint itself into a corner.
+test("the tray holds four tiles, takes only a match when full, and frees what a lifted tile blocked", () => {
+  const start = S.start(LAYOUTS.find((x) => x.id === "mountain")!.slots, FACE_COUNT, 3);
+  assert.equal(S.TRAY, 4);
+  // Lift free tiles of different faces until the tray is full.
+  let s = start;
+  while (s.tray.length < S.TRAY) {
+    const i = s.present.findIndex((on, k) => on && S.free(s, k) && S.twinInTray(s, k) === undefined);
+    assert.ok(i >= 0);
+    const before = s.present.filter((_, k) => S.free(s, k)).length;
+    s = S.pick(s, i)!;
+    // The tile left the board, and nothing it touched got more blocked.
+    assert.equal(s.present[i], false);
+    assert.ok(s.present.filter((_, k) => S.free(s, k)).length >= before - 1);
+  }
+  assert.equal(S.tilesLeft(s), S.tilesLeft(start));
+  // Full: a tile of another face is refused, a twin is taken with its mate.
+  const stranger = s.present.findIndex((on, k) => on && S.free(s, k) && S.twinInTray(s, k) === undefined);
+  if (stranger >= 0) assert.equal(S.pick(s, stranger), null);
+  const twin = s.present.findIndex((on, k) => on && S.free(s, k) && S.twinInTray(s, k) !== undefined);
+  if (twin >= 0) {
+    const after = S.pick(s, twin)!;
+    assert.equal(after.tray.length, S.TRAY - 1);
+    assert.equal(S.tilesLeft(after), S.tilesLeft(s) - 2);
+    assert.deepEqual(S.undo(after).tray, s.tray);
+  } else assert.ok(s.deadEnd, "a full tray with no twin free is a dead end");
+  // A shuffle puts the tray back on the board, and can be undone.
+  const { session: shuffled } = S.shuffle(s);
+  assert.deepEqual(shuffled.tray, []);
+  assert.equal(S.tilesLeft(shuffled), S.tilesLeft(s));
+  assert.ok(planWorks(shuffled.g, shuffled.present, shuffled.faces, shuffled.plan!));
+  const undone = S.undo(shuffled);
+  assert.deepEqual(undone.tray, s.tray);
+  assert.deepEqual(undone.present, s.present);
+});
+
+test("every board clears by following hints from any tray, and a dead end is a full tray with no twin", () => {
   const l = LAYOUTS.find((x) => x.id === "mountain")!;
   let deadEnds = 0;
   for (let seed = 1; seed <= 12; seed++) {
     let s = S.start(l.slots, FACE_COUNT, seed);
     const rng = { seed };
-    while (!S.cleared(s)) {
-      const m = S.available(s);
-      if (s.deadEnd || !m.length) {
+    for (let n = 0; !S.cleared(s); n++) {
+      assert.ok(n < 2000, "the play should end");
+      if (s.deadEnd) {
         deadEnds++;
-        assert.equal(solve(s.g, s.present, s.faces).kind === "solvable", false);
+        assert.equal(s.tray.length, S.TRAY);
+        assert.equal(S.hint(s), null);
         s = S.shuffle(s).session;
+        assert.equal(s.deadEnd, false);
         assert.ok(s.plan && planWorks(s.g, s.present, s.faces, s.plan));
         continue;
       }
-      const [a, b] = m[below(rng, m.length)];
-      s = S.take(s, a, b)!;
+      // Mostly random picks, so the tray fills with tiles the plan didn't want.
+      const pickable = s.present.flatMap((_, i) => (S.canPick(s, i) ? [i] : []));
+      assert.ok(pickable.length > 0, "not a dead end, so something can be picked");
+      const tip = S.hint(s);
+      const i = tip && below(rng, 3) === 0 ? tip[tip.length - 1] : pickable[below(rng, pickable.length)];
+      assert.ok(S.canPick(s, i));
+      s = S.pick(s, i)!;
     }
   }
-  assert.ok(deadEnds > 0, "expected random play to hit a dead end somewhere");
+  assert.ok(deadEnds > 0, "expected random play to fill the tray somewhere");
+  // Following hints alone never fills the tray.
+  for (let seed = 1; seed <= 6; seed++) {
+    let s = S.start(l.slots, FACE_COUNT, seed);
+    while (!S.cleared(s)) {
+      const tip = S.hint(s)!;
+      s = S.pick(s, tip[tip.length - 1])!;
+      assert.ok(s.tray.length <= 1);
+      assert.ok(!s.deadEnd);
+    }
+  }
 });
 
 test("two tiles stacked with nothing else: shuffle steps back until it can", () => {

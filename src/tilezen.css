@@ -271,14 +271,6 @@ h2 {
   inset: 0;
   background: rgba(40, 30, 10, 0.3);
 }
-.tile.selected {
-  transform: translate(-2px, -4px);
-}
-.tile.selected .face {
-  border: 4px solid #f08c00;
-  box-shadow: 0 0 0 3px #ffe066;
-  background: #fff3bf;
-}
 .tile.hinted .face {
   border: 4px solid #1c7ed6;
   animation: glow 1.1s ease-in-out infinite alternate;
@@ -313,6 +305,72 @@ h2 {
   .tile.shake {
     animation: none;
     transition: none;
+  }
+}
+
+/* The tray: the tiles picked whose twins are still to come. */
+.tray {
+  list-style: none;
+  margin: 0;
+  padding: 8px 10px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.22);
+}
+.tray-place {
+  position: relative;
+  width: 50px;
+  height: 68px;
+  border-radius: 10%/7%;
+  border: 2px dashed rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+}
+.tz.large .tray-place {
+  width: 60px;
+  height: 82px;
+}
+.tray-place.held {
+  border: 0;
+  background: var(--edge);
+  box-shadow: 1px 2px 4px rgba(0, 0, 0, 0.4);
+  animation: tray-in 0.2s ease;
+}
+.tray-place .face {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 4px;
+  bottom: 4px;
+  border-radius: inherit;
+  background: var(--tile);
+  border: 1.5px solid rgba(70, 50, 20, 0.55);
+  overflow: hidden;
+}
+.tray-place .face svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.tray-place.hinted .face {
+  border: 4px solid #1c7ed6;
+  animation: glow 1.1s ease-in-out infinite alternate;
+}
+.tray.full .tray-place.held {
+  box-shadow:
+    0 0 0 2px #ffd43b,
+    1px 2px 4px rgba(0, 0, 0, 0.4);
+}
+@keyframes tray-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tray-place.held,
+  .tray-place.hinted .face {
+    animation: none;
   }
 }
 
@@ -355,7 +413,7 @@ h2 {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: 96px;
+  bottom: 184px;
   width: min(460px, calc(100% - 24px));
   background: #fffaf0;
   color: #2a2110;
