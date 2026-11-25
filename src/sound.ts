@@ -1,10 +1,9 @@
-// Calm music and sound effects, all made in the browser with Web Audio:
-// slow pentatonic chords under a few drifting bell notes, through a long
-// reverb, and the clack of tiles, built from short bursts of noise and
-// struck tones. Nothing is loaded, so the game ships no audio files, and
-// nothing speaks.
+// Sound effects, all made in the browser with Web Audio: the clack of
+// tiles, built from short bursts of noise and struck tones, and small bells,
+// through a soft reverb. Nothing is loaded, so the game ships no audio
+// files; nothing speaks, and there is no background music.
 
-type Ctx = { ac: AudioContext; out: GainNode; music: GainNode; sfx: GainNode; reverb: ConvolverNode };
+type Ctx = { ac: AudioContext; out: GainNode; sfx: GainNode; reverb: ConvolverNode };
 let ctx: Ctx | null = null;
 
 function audio(): Ctx | null {
@@ -21,15 +20,11 @@ function audio(): Ctx | null {
     const wet = ac.createGain();
     wet.gain.value = 0.55;
     reverb.connect(wet).connect(out);
-    const music = ac.createGain();
-    music.gain.value = 0;
-    music.connect(out);
-    music.connect(reverb);
     const sfx = ac.createGain();
     sfx.gain.value = 0.5;
     sfx.connect(out);
     sfx.connect(reverb);
-    ctx = { ac, out, music, sfx, reverb };
+    ctx = { ac, out, sfx, reverb };
     return ctx;
   } catch {
     return null;
@@ -77,52 +72,6 @@ function tone(
   osc.connect(env).connect(dest);
   osc.start(when);
   osc.stop(when + attack + hold + release + 0.05);
-}
-
-// ---- Music ----
-
-const CHORDS = [
-  [0, 2, 4],
-  [-2, 1, 3],
-  [-1, 2, 5],
-  [-3, 0, 2],
-];
-let musicTimer: ReturnType<typeof setInterval> | null = null;
-let bar = 0;
-
-function playBar() {
-  const c = ctx;
-  if (!c) return;
-  const now = c.ac.currentTime + 0.05;
-  const chord = CHORDS[bar % CHORDS.length];
-  // A slow pad: each chord swells in and fades over the next.
-  for (const d of chord) tone(c.music, note(d, 50), now, { type: "triangle", attack: 2.5, hold: 3, release: 4, gain: 0.05 });
-  tone(c.music, note(chord[0], 38), now, { attack: 2, hold: 4, release: 3, gain: 0.07 });
-  // A few bell notes drifting over it, never the same twice.
-  const bells = 2 + Math.floor(Math.random() * 3);
-  for (let i = 0; i < bells; i++) {
-    const at = now + 0.6 + Math.random() * 6.4;
-    const d = chord[Math.floor(Math.random() * 3)] + 5 + Math.floor(Math.random() * 3);
-    tone(c.music, note(d, 62), at, { attack: 0.01, release: 2.6, gain: 0.045 });
-  }
-  bar++;
-}
-
-export function setMusic(on: boolean) {
-  const c = on ? audio() : ctx;
-  if (!c) return;
-  const t = c.ac.currentTime;
-  c.music.gain.cancelScheduledValues(t);
-  c.music.gain.setValueAtTime(c.music.gain.value, t);
-  c.music.gain.linearRampToValueAtTime(on ? 1 : 0, t + (on ? 2 : 0.6));
-  if (on && !musicTimer) {
-    void c.ac.resume();
-    playBar();
-    musicTimer = setInterval(playBar, 7500);
-  } else if (!on && musicTimer) {
-    clearInterval(musicTimer);
-    musicTimer = null;
-  }
 }
 
 /** Browsers start audio only after a tap, so the game calls this on each one. */

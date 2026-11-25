@@ -103,19 +103,10 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     void sdk.storage.set("prefs", next).catch(() => {});
   }
   useEffect(() => sound.setSound(prefs.sound), [prefs.sound]);
-  // Music starts with the first tap (browsers allow audio only after one).
-  const musicStarted = useRef(false);
-  useEffect(() => {
-    if (musicStarted.current) sound.setMusic(prefs.music);
-  }, [prefs.music]);
   function tapped(e?: React.PointerEvent) {
     sound.wake();
     // Every button answers with a tick; a tile has its own sound.
     if ((e?.target as Element | undefined)?.closest?.("button:not(.tile):not(:disabled), .toggle")) sound.play("tap");
-    if (!musicStarted.current) {
-      musicStarted.current = true;
-      if (prefs.music) sound.setMusic(true);
-    }
   }
 
   // When the player signs in mid-game, combine their account's save with
@@ -677,7 +668,6 @@ function Settings({ prefs, setPref, onClose }: { prefs: Prefs; setPref: <K exten
   const rows: [keyof Prefs, string, string][] = [
     ["large", t("Large tiles"), t("Bigger tiles and symbols. Big boards scroll.")],
     ["dim", t("Shade blocked tiles"), t("Tiles you can't take yet are shaded.")],
-    ["music", t("Calm music"), ""],
     ["sound", t("Sound effects"), ""],
     ["clock", t("Show the clock"), t("Off by default: take all the time you like.")],
   ];

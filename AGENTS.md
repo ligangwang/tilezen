@@ -26,12 +26,12 @@ Notes for AI coding agents working on Tile Zen (静心麻将).
   checks), and an `unlock` level between its neighbours'.
 - The tray (`TRAY` in `src/engine/session.ts`) holds four. A picked tile
   waits there until its twin is picked; a full tray takes only a match.
-- Tile Zen is an original game: its name, layouts, tile drawings and music
+- Tile Zen is an original game: its name, layouts, tile drawings and sounds
   are our own. Don't copy names, art, layouts or sounds from other mahjong
   solitaire games.
 - Keep it calm and kind: help (hints, undo, shuffle) stays free, no timer
   unless the player turns it on, nothing random is sold.
 - The look is drawn, not loaded: tiles and buttons are CSS, icons are our
   own SVG (`src/icons.tsx`, no emoji), sounds are synthesized (`src/sound.ts`,
-  no voices), motion is in `src/fx.ts` and respects reduced motion. Show the
+  no voices, no background music), motion is in `src/fx.ts` and respects reduced motion. Show the
   owner screenshots or a clip of a visual change before releasing it.
