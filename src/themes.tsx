@@ -45,24 +45,15 @@ const PIPS: Record<number, [number, number][]> = {
   8: [[0.25, 0.08], [0.75, 0.08], [0.25, 0.36], [0.75, 0.36], [0.25, 0.64], [0.75, 0.64], [0.25, 0.92], [0.75, 0.92]],
   9: [[0.15, 0.12], [0.5, 0.12], [0.85, 0.12], [0.15, 0.5], [0.5, 0.5], [0.85, 0.5], [0.15, 0.88], [0.5, 0.88], [0.85, 0.88]],
 };
-/** The pip area of a face (60 × 84), clear of the corner number. */
-const AREA = { x: 12, y: 20, w: 40, h: 56 };
+/** The pip area of a face (62 × 84): the whole face, with a margin. */
+const AREA = { x: 11, y: 13, w: 40, h: 58 };
 const at = ([u, v]: [number, number]) => [AREA.x + u * AREA.w, AREA.y + v * AREA.h];
-
-function corner(n: number, color: string) {
-  return (
-    <text x="5" y="16" fontSize="15" fontWeight="800" fill={color} fontFamily="Arial, sans-serif">
-      {n}
-    </text>
-  );
-}
 
 function dots(n: number) {
   const r = n === 1 ? 15 : n <= 4 ? 8.5 : n <= 6 ? 7.5 : 6.4;
   const colors = [BLUE, GREEN, RED];
   return (
     <>
-      {corner(n, BLUE)}
       {PIPS[n].map((p, i) => {
         const [x, y] = at(p);
         const c = n === 1 ? RED : colors[(i + n) % 3];
@@ -84,19 +75,19 @@ function sticks(n: number) {
   if (n === 1)
     return (
       <>
-        {corner(1, GREEN)}
         {/* A single tall reed with its leaves. */}
-        <rect x="27" y="22" width="8" height="52" rx="4" fill={GREEN} />
-        <rect x="26" y="38" width="10" height="3" fill="#fff" />
-        <rect x="26" y="56" width="10" height="3" fill="#fff" />
-        <path d="M31 30 C 20 26 14 32 12 40 C 22 38 27 36 31 30 Z" fill="#2fa36b" />
-        <path d="M31 46 C 42 42 48 48 50 56 C 40 54 35 52 31 46 Z" fill="#2fa36b" />
-        <circle cx="31" cy="20" r="4" fill={RED} />
+        <g transform="translate(0 -5)">
+          <rect x="27" y="22" width="8" height="52" rx="4" fill={GREEN} />
+          <rect x="26" y="38" width="10" height="3" fill="#fff" />
+          <rect x="26" y="56" width="10" height="3" fill="#fff" />
+          <path d="M31 30 C 20 26 14 32 12 40 C 22 38 27 36 31 30 Z" fill="#2fa36b" />
+          <path d="M31 46 C 42 42 48 48 50 56 C 40 54 35 52 31 46 Z" fill="#2fa36b" />
+          <circle cx="31" cy="20" r="4" fill={RED} />
+        </g>
       </>
     );
   return (
     <>
-      {corner(n, GREEN)}
       {PIPS[n].map((p, i) => {
         const [x, y] = at(p);
         const c = (n === 5 || n === 9) && i === 4 ? RED : n === 7 && i === 1 ? RED : GREEN;
@@ -115,11 +106,10 @@ const NUMERALS = ["一", "二", "三", "四", "五", "六", "七", "八", "九"]
 function numeral(n: number) {
   return (
     <>
-      {corner(n, BLUE)}
-      <text x="31" y="44" textAnchor="middle" fontSize="27" fontWeight="900" fill={BLUE} fontFamily={HAN_FONT}>
+      <text x="31" y="38" textAnchor="middle" fontSize="30" fontWeight="900" fill={BLUE} fontFamily={HAN_FONT}>
         {NUMERALS[n - 1]}
       </text>
-      <text x="31" y="75" textAnchor="middle" fontSize="27" fontWeight="900" fill={RED} fontFamily={HAN_FONT}>
+      <text x="31" y="72" textAnchor="middle" fontSize="30" fontWeight="900" fill={RED} fontFamily={HAN_FONT}>
         萬
       </text>
     </>
