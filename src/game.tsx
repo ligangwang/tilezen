@@ -1,7 +1,7 @@
 // Tile Zen: the menu, the board with its toolbar, the result card, free
 // play, tile themes and settings.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { SignInReason } from "../sdk/dingn-sdk.js";
+import type { Challenge, ChallengeOutcome, ChallengeStanding, SignInReason } from "../sdk/dingn-sdk.js";
 import { useDingn, useLocale } from "./dingn";
 import { BoardView } from "./board-view";
 import { LAYOUTS, openLayouts, type Layout } from "./engine/layouts";
@@ -20,9 +20,30 @@ type Run = {
   level: number;
   day: string;
   layout: Layout;
+  /** What the board was dealt from, to deal the same one again. */
+  seed: number;
   session: S.Session;
   started: number;
+  /** The friend's challenge this board answers, when a challenge link opened it. */
+  challenge?: Challenge;
 };
+/**
+ * What a result knows of challenges: for a board played on its own, the
+ * board's open challenge (null when it has none) and the link once made;
+ * for one played to answer a challenge, how that ended.
+ */
+type Duel = {
+  standing?: ChallengeStanding | null;
+  outcome?: ChallengeOutcome;
+  link?: { busy?: boolean; url?: string; copied?: boolean; failed?: boolean };
+};
+/** The scoring rules a challenge was played under, saved with it. */
+const SCORE_RULES = "s1";
+/** The challenge a score on this board makes, or null where there are none (free play). */
+function challengeOf(r: Run, score: number): Challenge | null {
+  if (r.mode === "free") return null;
+  return { mode: r.mode, seed: r.mode === "level" ? String(r.level) : r.day, score, unit: "points", rules: SCORE_RULES };
+}
 type Result = {
   /** Coins dingn paid, null when nothing was asked for (or signed out). */
   coins: number | null;
@@ -30,6 +51,11 @@ type Result = {
   worth: number;
   calm: boolean;
   seconds: number;
+  /** The score and what it is made of: pairs' points, less help, plus the calm bonus. */
+  score: number;
+  points: number;
+  helpCost: number;
+  calmBonus: number;
   /** What clearing this level opened: layouts and themes. */
   opened: string[];
 };
@@ -95,7 +121,20 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     flights.current.clear();
   });
   // Matches in a row with no wrong tap and no help: only for the fun of it.
-  const [streak, setStreak] = useState(0);
+  // Points of pairs that have been picked but have not popped yet: the
+  // score on screen goes up when the pair is seen to go.
+  const [pending, setPending] = useState(0);
+  // The tray filled with four different tiles: the card that says so is up.
+  const [lost, setLost] = useState(false);
+  const [duel, setDuel] = useState<Duel>({});
+  // Points drifting up from where they were won or lost.
+  const [floats, setFloats] = useState<{ id: number; text: string; minus: boolean; x?: number; y?: number }[]>([]);
+  const floatId = useRef(0);
+  function float(text: string, minus: boolean, x?: number, y?: number) {
+    const id = ++floatId.current;
+    setFloats((l) => [...l, { id, text, minus, x, y }]);
+    setTimeout(() => setFloats((l) => l.filter((f) => f.id !== id)), 1000);
+  }
   const [shake, setShake] = useState<number | null>(null);
   const [note, setNote] = useState("");
   const [result, setResult] = useState<Result | null>(null);
@@ -150,16 +189,19 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     return () => clearTimeout(id);
   }, [note]);
 
-  function begin(mode: Mode, level: number, layout: Layout, seed: number, on = day) {
+  function begin(mode: Mode, level: number, layout: Layout, seed: number, on = day, challenge?: Challenge) {
     const depth = mode === "level" ? depthFor(level) : OPEN_DEPTH;
     const started = Date.now();
     current.current = started;
-    setRun({ mode, level, day: on, layout, session: S.start(layout.slots, FACE_COUNT, seed, depth), started });
+    setRun({ mode, level, day: on, layout, seed, session: S.start(layout.slots, FACE_COUNT, seed, depth), started, challenge });
+    setLost(false);
+    setDuel({});
     setHint(null);
     flights.current.clear();
     fx.current?.clear();
     setTrayLeaving([]);
-    setStreak(0);
+    setPending(0);
+    setFloats([]);
     setResult(null);
     setNote("");
     setScreen("play");
@@ -173,10 +215,28 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   };
   const playFree = (layout: Layout) => begin("free", 0, layout, (Date.now() & 0x7fffffff) | 1);
 
-  const locked = run?.mode === "level" && run.level > FREE_LEVELS && !signedIn;
+  // A friend's challenge link opened the game: play that board, the same
+  // level or day's puzzle they played. (dingn has shown the score to beat.)
+  useEffect(() => {
+    const c = sdk.challenge;
+    if (!c) return;
+    const level = Number(c.seed);
+    if (c.mode === "level" && Number.isInteger(level) && level >= 1 && level <= 99999) begin("level", level, layoutFor(level), levelSeed(level), day, c);
+    else if (c.mode === "daily" && /^\d{4}-\d\d-\d\d$/.test(c.seed ?? "")) begin("daily", 0, dailyLayout(c.seed!), daySeed(c.seed!), c.seed, c);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // A challenged level is open to whoever was sent it.
+  const locked = run?.mode === "level" && run.level > FREE_LEVELS && !signedIn && !run.challenge;
   // A cleared board takes no more taps or help while its last pair leaves
   // and the result comes up, so it is finished (and paid) once.
-  const done = !!result || (!!run && S.cleared(run.session));
+  const done = !!result || (!!run && (S.cleared(run.session) || S.failed(run.session)));
+  /** The same board again, after a failed one. */
+  function retry() {
+    if (!run) return;
+    sdk.roundEnded();
+    begin(run.mode, run.level, run.layout, run.seed, run.day, run.challenge);
+  }
 
   function update(session: S.Session) {
     setRun((r) => (r ? { ...r, session } : r));
@@ -184,23 +244,15 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
 
   function onTile(i: number) {
     tapped();
-    if (!run || result || S.cleared(run.session)) return;
+    if (!run || done) return;
     const s = run.session;
-    if (!S.free(s, i)) {
-      sound.play("blocked");
-      setStreak(0);
-      setShake(i);
-      setTimeout(() => setShake((v) => (v === i ? null : v)), 400);
-      return;
-    }
     const next = S.pick(s, i);
     if (!next) {
-      // Free, but the tray is full of other tiles.
+      // Blocked: it will not move.
       sound.play("blocked");
-      setStreak(0);
+      update(S.miss(s));
       setShake(i);
       setTimeout(() => setShake((v) => (v === i ? null : v)), 400);
-      setNote(t("The tray is full. Pick a tile that matches one in it."));
       return;
     }
     setHint(null);
@@ -211,11 +263,18 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     sound.play("select");
     const started = run.started;
     if (next.tray.length > s.tray.length) {
-      // It waits in the tray for its twin.
-      setTimeout(() => current.current === started && sound.play("land"), FLY_MS);
+      // It waits in the tray for its twin; as the fourth to wait, it fills
+      // the tray and the board is failed, which the player sees once it lands.
+      const full = S.failed(next);
+      setTimeout(() => {
+        if (current.current !== started) return;
+        sound.play(full ? "fail" : "land");
+        if (full) setTimeout(() => current.current === started && setLost(true), 350);
+      }, FLY_MS);
       return;
     }
-    setStreak(streak + 1);
+    const gain = next.points - s.points;
+    setPending((p) => p + gain);
     // It takes the next place in the tray like any tile, rests a moment,
     // then slides to meet its twin and the pair pops in a puff of petals.
     // A quick player's pairs overlap.
@@ -229,14 +288,18 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     setTimeout(() => current.current === started && sound.play("land"), FLY_MS);
     setTimeout(() => {
       if (current.current !== started) return;
-      sound.play("match", streak);
+      setPending((p) => p - gain);
+      sound.play("match", s.streak);
       const [a, b] = [twin, i].map((id) => playEl.current?.querySelector<HTMLElement>(`[data-tray="${id}"]`));
       const [ra, rb] = [a, b].map((el) => el?.getBoundingClientRect());
       if (!a || !b || !ra?.width || !rb) return;
       const gap = rb.left - ra.left;
       pop(a, gap / 2);
       pop(b, -gap / 2);
-      effects()?.burst(ra.left + gap / 2 + ra.width / 2, ra.top + ra.height / 2, petals(theme));
+      const mid = ra.left + gap / 2 + ra.width / 2;
+      effects()?.burst(mid, ra.top + ra.height / 2, petals(theme));
+      const box = playEl.current!.getBoundingClientRect();
+      float(`+${gain}`, false, mid - box.left, ra.top - box.top);
     }, FLY_MS + REST_MS);
     setTimeout(() => setTrayLeaving((l) => l.filter((x) => !pair.includes(x))), LEAVE_MS);
     // The last pair is seen leaving before the result covers the board.
@@ -249,15 +312,16 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     const pair = S.hint(run.session);
     if (!pair) return;
     sound.play("hint");
-    setStreak(0);
+    float(`−${S.HELP_COST.hint}`, true);
     setHint(pair);
     update(S.withHint(run.session));
   }
   function onUndo() {
     tapped();
     if (!run || result || S.cleared(run.session) || !run.session.history.length) return;
+    setLost(false);
     sound.play("undo");
-    setStreak(0);
+    float(`−${S.HELP_COST.undo}`, true);
     setHint(null);
     update(S.undo(run.session));
   }
@@ -266,7 +330,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     if (!run || result || S.cleared(run.session)) return;
     const { session, rewound } = S.shuffle(run.session);
     sound.play("shuffle");
-    setStreak(0);
+    float(`−${S.HELP_COST.shuffle}`, true);
     setHint(null);
     update(session);
     if (rewound) setNote(t("Stepped back {0} moves so the tiles could be shuffled.", String(rewound)));
@@ -284,12 +348,13 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     if (r.mode === "level") {
       worth = coinsFor(tiles, calm);
       if (calm) next.calm = saved.calm + 1;
-      if (r.level > saved.cleared) {
+      // The next level on, not one a challenge reached ahead to.
+      if (r.level === saved.cleared + 1) {
         next.cleared = r.level;
         for (const l of LAYOUTS) if (l.unlock === r.level + 1) opened.push(t("New layout: {0}", layoutName(l)));
         for (const th of THEMES) if (th.unlock === r.level + 1) opened.push(t("New tile theme: {0}", t(th.name)));
       }
-    } else if (r.mode === "daily") {
+    } else if (r.mode === "daily" && r.day === today()) {
       const first = saved.daily?.day !== r.day;
       if (first) next.dailies = saved.dailies + 1;
       if (calm) next.calm = saved.calm + 1;
@@ -299,8 +364,23 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     // Left for the menu or another board meanwhile: it still counts, unseen.
     const shown = current.current === r.started;
     if (shown) {
-      setResult({ coins: null, worth, calm, seconds, opened });
+      setResult({
+        coins: null,
+        worth,
+        calm,
+        seconds,
+        opened,
+        score: S.score(session),
+        points: session.points,
+        helpCost: S.helpCost(session),
+        calmBonus: S.calmBonus(session),
+      });
       effects()?.rain(petals(theme));
+      // The board's challenge: how this one ended, or what a new one would meet.
+      const mine = challengeOf(r, S.score(session));
+      const still = () => current.current === r.started;
+      if (r.challenge) void sdk.challengeResult?.(S.score(session)).then((outcome) => still() && setDuel((d) => ({ ...d, outcome })), () => {});
+      else if (mine) void sdk.challengeStanding?.(mine).then((standing) => still() && setDuel((d) => ({ ...d, standing })), () => {});
     }
     // Progress is saved at once; coins are paid after, on their own.
     commit(next);
@@ -322,9 +402,28 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     }
   }
 
+  /** Posts the score as a challenge (or under the board's open one) and hands the player its link. */
+  async function onChallenge() {
+    const mine = run && result && challengeOf(run, result.score);
+    if (!mine || duel.link?.busy) return;
+    const started = run.started;
+    const set = (link: Duel["link"]) => current.current === started && setDuel((d) => ({ ...d, link }));
+    set({ busy: true });
+    try {
+      const url = await sdk.challengeLink(mine);
+      // Copied where the browser allows it; shown to copy by hand either way.
+      const copied = await navigator.clipboard?.writeText(url).then(() => true, () => false);
+      set({ url, copied: !!copied });
+    } catch {
+      set({ failed: true });
+    }
+  }
+
   // All sign-in prompts on a result are dingn's: the game only says when.
   const signInReasons: SignInReason[] =
-    !signedIn && result && run?.mode !== "free" ? (run?.mode === "level" ? ["rewards", "progress"] : ["rewards"]) : [];
+    !signedIn && result && run?.mode !== "free"
+      ? [...(run?.challenge || duel.standing ? (["score"] as SignInReason[]) : []), ...((run?.mode === "level" ? ["rewards", "progress"] : ["rewards"]) as SignInReason[])]
+      : [];
   const signInKey = signInReasons.join(",");
   useEffect(() => {
     if (!signInKey || !sdk.showSignIn) return;
@@ -411,6 +510,20 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
               <span className="hud-label">{t("Settings")}</span>
             </button>
           </header>
+          {!locked && (
+            <div className="score" aria-label={`${t("Score")} ${Math.max(0, S.score(run.session) - pending)}`}>
+              <span>{t("Score")}</span>
+              <strong key={S.score(run.session) - pending}>{count(Math.max(0, S.score(run.session) - pending))}</strong>
+              {floats.filter((f) => f.x === undefined).map((f) => (
+                <em key={f.id} className="float minus">
+                  {f.text}
+                </em>
+              ))}
+            </div>
+          )}
+          {!locked && run.challenge && (
+            <p className="target">{t("Score to beat: {0}", count(run.challenge.score))}</p>
+          )}
           {/* How much of the board is cleared. */}
           <div className="progress" aria-hidden="true">
             {/* A new board starts the bar empty, without sliding back. */}
@@ -455,13 +568,18 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
               />
               {!result && run.session.deadEnd && (
                 <div className="stuck" role="status">
-                  <strong>{t("The tray is full and no free tile matches it.")}</strong>
-                  <span>{t("Shuffle the tiles, free, or undo a move.")}</span>
+                  <strong>{t("One place left in the tray, and no free tile matches the tiles in it.")}</strong>
+                  <span>{t("Shuffle or undo: one more tile would fill the tray.")}</span>
                 </div>
               )}
-              {!result && streak >= 3 && (
-                <div className="streak" key={streak} role="status">
-                  {t("{0} in a row", String(streak))}
+              {floats.filter((f) => f.x !== undefined).map((f) => (
+                <em key={f.id} className="float" style={{ left: f.x, top: f.y }}>
+                  {f.text}
+                </em>
+              ))}
+              {!result && run.session.streak >= 3 && (
+                <div className="streak" key={run.session.streak} role="status">
+                  {t("{0} in a row", String(run.session.streak))}
                 </div>
               )}
               {note && (
@@ -497,6 +615,28 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
               </footer>
             </>
           )}
+          {lost && !result && S.failed(run.session) && (
+            <div className="overlay lost">
+              <div className="panel">
+                <p className="eyebrow">
+                  {run.mode === "level" ? t("Level {0}", String(run.level)) : run.mode === "daily" ? t("Daily puzzle") : t("Free play")}
+                </p>
+                <h2>{t("The tray is full")}</h2>
+                <p>{t("Four different tiles are waiting and none has its twin, so this board is lost.")}</p>
+                <div className="actions">
+                  <button type="button" className="big primary" onClick={retry}>
+                    {t("Try again")}
+                  </button>
+                  <button type="button" className="big" onClick={onUndo}>
+                    {t("Take the last tile back")}
+                  </button>
+                  <button type="button" className="big" onClick={() => { sdk.roundEnded(); current.current = 0; setScreen("menu"); setRun(null); }}>
+                    {t("Menu")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           <canvas className="fx" ref={fxCanvas} aria-hidden="true" />
           {result && (
             <div className="overlay result">
@@ -509,6 +649,28 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                 <p className="facts">
                   {t("{0} tiles", String(run.layout.slots.length))} · {clock(result.seconds)}
                 </p>
+                <div className="tally">
+                  <p className="total">
+                    <span>{t("Score")}</span>
+                    <strong>{count(result.score)}</strong>
+                  </p>
+                  <p>
+                    <span>{t("Pairs and streaks")}</span>
+                    <b>{count(result.points)}</b>
+                  </p>
+                  {result.helpCost > 0 && (
+                    <p>
+                      <span>{t("Help used")}</span>
+                      <b className="minus">−{count(result.helpCost)}</b>
+                    </p>
+                  )}
+                  {result.calmBonus > 0 && (
+                    <p>
+                      <span>{t("Calm clear bonus")}</span>
+                      <b className="plus">+{count(result.calmBonus)}</b>
+                    </p>
+                  )}
+                </div>
                 {result.worth > 0 && signedIn && (
                   <p className="coins">
                     <img src="./coin.svg" alt="" width="26" height="26" />
@@ -521,6 +683,39 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                     {o}
                   </p>
                 ))}
+                {duel.outcome && (
+                  <div className={`duel${duel.outcome.beat ? " won" : ""}`} role="status">
+                    <strong>{duel.outcome.beat ? t("You beat the challenge!") : t("The challenge stands.")}</strong>
+                    <span>
+                      {t("Your best: {0} points", count(duel.outcome.best))}
+                      {duel.outcome.rank !== null && ` · ${t("Place {0} of {1}", String(duel.outcome.rank), String(duel.outcome.players))}`}
+                    </span>
+                  </div>
+                )}
+                {!run.challenge && duel.standing !== undefined && (
+                  <div className="duel">
+                    {duel.standing && (
+                      <span>
+                        {duel.standing.mine
+                          ? t("This board's challenge is yours, at {0} points.", count(duel.standing.score))
+                          : t("{0} holds this board's challenge with {1} points.", duel.standing.name, count(duel.standing.score))}
+                        {duel.standing.rank !== null && ` ${t("Your score would take place {0} of {1}.", String(duel.standing.rank), String(duel.standing.players))}`}
+                      </span>
+                    )}
+                    {duel.link?.url ? (
+                      <>
+                        <span>{duel.link.copied ? t("Link copied. Send it to anyone who should try to beat you.") : t("Send this link to anyone who should try to beat you.")}</span>
+                        <input readOnly value={duel.link.url} aria-label={t("Challenge link")} onFocus={(e) => e.currentTarget.select()} />
+                      </>
+                    ) : (
+                      <button type="button" className="big challenge" onClick={onChallenge} disabled={duel.link?.busy}>
+                        <span className="menu-icon"><Icon name="swords" size={20} /></span>
+                        {!duel.standing || !signedIn ? t("Challenge anyone") : duel.standing.mine ? t("Share your challenge") : t("Join the challenge")}
+                      </button>
+                    )}
+                    {duel.link?.failed && <span className="minus">{t("Challenges can't be made right now.")}</span>}
+                  </div>
+                )}
                 <div className="actions">
                   {run.mode === "level" && (
                     <button type="button" className="big primary" onClick={() => playLevel(run.level + 1)}>
@@ -565,6 +760,8 @@ function MiniTile({ theme, face }: { theme: Theme; face: number }) {
   );
 }
 
+/** A number of points, with its thousands set apart. */
+const count = (n: number) => n.toLocaleString("en-US");
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 
 function Menu(props: {
@@ -624,7 +821,7 @@ function Menu(props: {
         <details className="how">
           <summary>{t("How to play")}</summary>
           <p>{t("Tap a tile to lift it into the tray, then tap its twin and both leave. A tile can be picked when nothing lies on top of it and its left or right side is open.")}</p>
-          <p>{t("The tray holds up to four tiles, so you can lift a tile out of the way to reach one under it.")}</p>
+          <p>{t("The tray holds four tiles, so you can lift a tile out of the way to reach one under it. Fill it with four different tiles and the board is lost.")}</p>
           <p>{t("Every board can be cleared. Hints, undo and shuffle are always free, and there is no clock unless you turn it on.")}</p>
         </details>
       </div>
@@ -749,7 +946,7 @@ function Tray({
   const over = leaving.filter((g) => g.slot === null);
   return (
     <ul
-      className={`tray${session.tray.length >= S.TRAY ? " full" : ""}`}
+      className={`tray${session.tray.length >= S.TRAY ? " full" : session.tray.length >= S.ROOM ? " tight" : ""}`}
       aria-label={t("Tray: {0} of {1} places taken", String(session.tray.length), String(S.TRAY))}
     >
       {places.map(({ id, gone }) =>

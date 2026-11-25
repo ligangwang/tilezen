@@ -565,11 +565,123 @@ h2 {
   background: linear-gradient(90deg, var(--gold-deep), #ffe9a8);
   transition: width 0.4s ease;
 }
+/* The score, under the title, and the points that drift up as they are
+   won (over the tray) or lost (beside the score). */
+.score {
+  position: relative;
+  flex: none;
+  align-self: center;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 7px;
+  padding: 1px 16px 2px;
+  border-radius: 99px;
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.35),
+    0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.score span {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.score strong {
+  display: inline-block;
+  min-width: 2ch;
+  font-family: var(--display);
+  font-size: 22px;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+  animation: bump 0.3s ease-out;
+}
+@keyframes bump {
+  40% {
+    transform: scale(1.22);
+    color: #fff;
+  }
+}
+/* The score a friend set, on a board opened from their challenge. */
+.target {
+  flex: none;
+  margin: -3px 0 7px;
+  text-align: center;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #ffd9a0;
+}
+.float {
+  position: absolute;
+  z-index: 260;
+  transform: translate(-50%, -100%);
+  font-family: var(--display);
+  font-style: normal;
+  font-size: 24px;
+  font-weight: 700;
+  color: #ffe9a8;
+  text-shadow:
+    0 2px 0 rgba(90, 55, 0, 0.7),
+    0 0 12px rgba(255, 200, 60, 0.8);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: float 1s ease-out forwards;
+}
+.float.minus {
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translate(0, -50%);
+  font-size: 18px;
+  color: #ffb3a6;
+  text-shadow: 0 1px 0 rgba(80, 10, 0, 0.7);
+  animation-name: sink;
+}
+@keyframes float {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -60%) scale(0.6);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -100%) scale(1.15);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -230%) scale(1);
+  }
+}
+@keyframes sink {
+  0% {
+    opacity: 0;
+  }
+  15%,
+  65% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 40%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .score strong {
+    animation: none;
+  }
+  .float {
+    display: none;
+  }
+}
 /* Matches in a row, popping in under the bar. */
 .streak {
   position: absolute;
   z-index: 250;
-  top: 84px;
+  top: 118px;
   left: 50%;
   transform: translateX(-50%);
   padding: 4px 18px;
@@ -671,16 +783,38 @@ h2 {
   background: none;
   box-shadow: none;
 }
-/* A full tray takes only a match: its rim lights. */
-.tray.full::before {
+/* One place left: the rim lights as a warning, since one more tile that
+   is no twin fails the board. Full, it turns red. */
+.tray.tight::before {
   box-shadow:
     inset 0 1px 0 rgba(255, 214, 160, 0.45),
     inset 0 -3px 0 rgba(0, 0, 0, 0.28),
     0 0 0 2.5px #ffcf4a,
     0 0 18px 2px rgba(255, 207, 74, 0.55);
 }
+.tray.tight .tray-place:not(.held) {
+  animation: last-place 1s ease-in-out infinite alternate;
+}
+@keyframes last-place {
+  to {
+    box-shadow:
+      inset 0 2px 5px rgba(0, 0, 0, 0.55),
+      0 0 0 2px rgba(255, 207, 74, 0.9);
+  }
+}
+.tray.full::before {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 160, 0.45),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.28),
+    0 0 0 2.5px #ff6b57,
+    0 0 20px 4px rgba(255, 90, 70, 0.6);
+}
+.lost .panel h2 {
+  color: #a3352a;
+}
 @media (prefers-reduced-motion: reduce) {
-  .tray-place.hinted .face {
+  .tray-place.hinted .face,
+  .tray.tight .tray-place {
     animation: none;
   }
 }
@@ -875,6 +1009,95 @@ h2 {
 .facts {
   opacity: 0.7;
   font-size: 15.5px;
+}
+/* The score on the result card, and what it is made of. */
+.tally {
+  margin: 14px 0 12px;
+  padding: 10px 16px 8px;
+  border-radius: 16px;
+  background: rgba(120, 90, 40, 0.09);
+  font-size: 15.5px;
+}
+.tally p {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 3px 0;
+  opacity: 0.85;
+}
+.tally .total {
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(120, 90, 40, 0.22);
+  opacity: 1;
+}
+.tally .total span {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9a7426;
+}
+.tally .total strong {
+  font-family: var(--display);
+  font-size: 34px;
+  line-height: 1.1;
+  color: #1f4d40;
+}
+.tally .minus {
+  color: #b23a2a;
+}
+.tally .plus {
+  color: #2b6a4f;
+}
+/* Challenges on the result card: this board's, and the way to make one. */
+.duel {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(160, 112, 28, 0.35);
+  background: #fdf3d4;
+  font-size: 15.5px;
+}
+.duel strong {
+  font-family: var(--display);
+  font-size: 21px;
+  color: #8a5a00;
+}
+.duel.won {
+  border-color: rgba(43, 106, 79, 0.4);
+  background: #e4f3e6;
+}
+.duel.won strong {
+  color: #1f5c43;
+}
+.duel .minus {
+  color: #b23a2a;
+}
+.duel input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1.5px solid #d9c9a3;
+  background: #fffdf8;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  text-align: center;
+}
+.panel .big.challenge {
+  border: 0;
+  background: linear-gradient(180deg, #ffeab0, #f2c665);
+  color: var(--ink);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 3px 0 #b58428;
+}
+.big:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 .coins {
   display: inline-flex;

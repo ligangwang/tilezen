@@ -5,8 +5,9 @@ free tiles to clear the board. Play it at <https://dingn.com/play/tilezen/>.
 
 A picked tile lifts into a tray that holds four; picking its twin takes both
 away. Lifting a tile frees what it was blocking, so the tray is how a player
-reaches a twin that is buried. A full tray takes only a tile that matches one
-in it.
+reaches a twin that is buried. Four different tiles waiting fill the tray,
+and the board is failed: the player tries it again, or takes the last tile
+back.
 
 - **Rules**: tap a tile to lift it into the tray, then tap its twin and both
   leave. A tile can be picked when nothing lies on top of it and its left or
@@ -18,7 +19,8 @@ in it.
   tiles, which is why boards can have far more covered tiles than a game
   played pair by pair. Early levels keep twins within reach; later ones bury
   them two, then three tiles deep, always leaving a place in the tray spare.
-  The game says when the tray is full and no free tile matches it.
+  The tray's rim lights when one place is left, and the game says when no
+  free tile matches the tiles waiting, so the next pick would fail the board.
 - **Free help**: hints, undo and shuffle are always free and unlimited. A
   hint is the next pick of a way through that the game keeps up to date as
   you play, with its twin pointed out. A shuffle puts the tray back and deals
@@ -38,6 +40,20 @@ in it.
 - **No hurry**: no timer unless the player turns on the clock. The only
   sounds are the tiles', made with Web Audio: clacks, a wooden tray, bells on
   a match. No background music, no voices, no audio files.
+- **Score**: every board keeps a score, shown under the title as it grows.
+  A pair is worth 100 points, and 10 more for each pair cleared in a row
+  before it (up to double); a wrong tap or any help ends the row. A hint
+  takes 40 points off, an undo 30 and a shuffle 150, never below nothing,
+  and a calm clear (no help at all) adds a fifth. The result card shows
+  what the score is made of. The rules are in `src/engine/session.ts`
+  (`score`); nothing is timed.
+- **Challenges**: a cleared level or daily puzzle offers "Challenge anyone",
+  which posts the score through dingn (`sdk.challengeLink`) and gives a link
+  to send. Whoever opens it plays the same board (`sdk.challenge`: mode
+  `level` with the level's number, or `daily` with the day) with the score
+  to beat on screen, and dingn ranks the result (`sdk.challengeResult`).
+  Free play has no challenges. A challenged level is open to anyone sent
+  it, and does not move their own progress on.
 - **Levels**: endless short levels on 16 layouts of our own (Pebble, Stream,
   Lotus, Old Well, Stone Bridge, Moon Gate, Drum Tower, Lantern, Butterfly, Cloud, Pagoda, Folding
   Fan, Far Mountains, Twin Peaks, Courtyard, Mountain Temple), from 14 to 120
