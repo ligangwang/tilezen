@@ -1,0 +1,120 @@
+{
+  "id": "tilezen",
+  "version": "1.0.0",
+  "title": {
+    "en": "Tile Zen",
+    "zh": "静心麻将"
+  },
+  "description": {
+    "en": "Calm tile-matching solitaire: match pairs of free tiles to clear the board. Big, clear tiles with a large-tile mode, every deal can be cleared, free hints, undo and shuffle, a daily puzzle, and new layouts and tile themes as you go.",
+    "zh": "轻松的麻将消除接龙：配对可以拿的牌，把牌桌清空。牌大清晰，还有大号牌模式；每一局都能消完，提示、撤回和洗牌全免费；有每日一局，玩得越多，开放的牌阵和牌面主题越多。"
+  },
+  "languages": [
+    "en",
+    "zh-CN"
+  ],
+  "category": "puzzle",
+  "entry": "index.html",
+  "cover": "cover.jpg",
+  "badges": [
+    {
+      "id": "level-5",
+      "tier": "bronze",
+      "level": 5,
+      "title": {
+        "en": "Clear level 5",
+        "zh": "通过第 5 关"
+      }
+    },
+    {
+      "id": "level-10",
+      "tier": "bronze",
+      "level": 10,
+      "title": {
+        "en": "Clear level 10",
+        "zh": "通过第 10 关"
+      }
+    },
+    {
+      "id": "level-25",
+      "tier": "silver",
+      "level": 25,
+      "title": {
+        "en": "Clear level 25",
+        "zh": "通过第 25 关"
+      }
+    },
+    {
+      "id": "level-50",
+      "tier": "gold",
+      "level": 50,
+      "title": {
+        "en": "Clear level 50",
+        "zh": "通过第 50 关"
+      }
+    },
+    {
+      "id": "level-100",
+      "tier": "gold",
+      "level": 100,
+      "title": {
+        "en": "Clear level 100",
+        "zh": "通过第 100 关"
+      }
+    },
+    {
+      "id": "level-250",
+      "tier": "diamond",
+      "level": 250,
+      "title": {
+        "en": "Clear level 250",
+        "zh": "通过第 250 关"
+      }
+    },
+    {
+      "id": "calm",
+      "tier": "bronze",
+      "icon": "heart",
+      "title": {
+        "en": "Clear a board with no hints, undos or shuffles",
+        "zh": "不用提示、撤回和洗牌消完一局"
+      }
+    },
+    {
+      "id": "calm-25",
+      "tier": "silver",
+      "icon": "stars",
+      "title": {
+        "en": "Clear 25 boards with no help",
+        "zh": "不靠帮助消完 25 局"
+      }
+    },
+    {
+      "id": "big-board",
+      "tier": "gold",
+      "icon": "crown",
+      "title": {
+        "en": "Clear a board of 100 tiles or more",
+        "zh": "消完一局 100 张以上的牌"
+      }
+    },
+    {
+      "id": "daily",
+      "tier": "bronze",
+      "icon": "clock",
+      "title": {
+        "en": "Finish a daily puzzle",
+        "zh": "完成一次每日一局"
+      }
+    },
+    {
+      "id": "daily-7",
+      "tier": "silver",
+      "icon": "trophy",
+      "title": {
+        "en": "Finish 7 daily puzzles",
+        "zh": "完成 7 次每日一局"
+      }
+    }
+  ]
+}
