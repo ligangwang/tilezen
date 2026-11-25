@@ -1,6 +1,6 @@
 {
   "id": "tilezen",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "title": {
     "en": "Tile Zen",
     "zh": "静心麻将"
@@ -13,7 +13,7 @@
     "en",
     "zh-CN"
   ],
-  "category": "puzzle",
+  "category": "casual",
   "entry": "index.html",
   "cover": "cover.jpg",
   "badges": [

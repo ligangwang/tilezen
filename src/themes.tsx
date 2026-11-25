@@ -148,7 +148,7 @@ function honour(n: number) {
   );
 }
 
-// ---- Picture themes: a suit picture and a large number ----
+// ---- Picture themes: a suit's picture, drawn once for each of its number ----
 
 type Icon = (color: string) => ReactNode;
 const ICONS: Record<string, Icon> = {
@@ -241,14 +241,24 @@ const PICTURE_SUITS: Record<Exclude<ThemeId, "classic">, [string, string][]> = {
   night: [["moon", "#5e35b1"], ["star", "#e09100"], ["lantern", "#c62828"], ["cloud", "#455a64"]],
 };
 
+/**
+ * A numbered face of a picture theme: the suit's picture as many times as
+ * the number, laid out like the classic dots, so no tile carries a digit.
+ * The icons are drawn in a 40 × 40 box.
+ */
 function picture(theme: Exclude<ThemeId, "classic">, suit: number, n: number) {
   const [icon, color] = PICTURE_SUITS[theme][suit];
+  const size = n === 1 ? 1 : n <= 4 ? 0.52 : n <= 6 ? 0.44 : 0.33;
   return (
     <>
-      <g transform="translate(13 6) scale(0.9)">{ICONS[icon](color)}</g>
-      <text x="31" y="77" textAnchor="middle" fontSize="34" fontWeight="900" fill={color} fontFamily="Arial, sans-serif">
-        {n}
-      </text>
+      {PIPS[n].map((p, i) => {
+        const [x, y] = at(p);
+        return (
+          <g key={i} transform={`translate(${x - 20 * size} ${y - 20 * size}) scale(${size})`}>
+            {ICONS[icon](color)}
+          </g>
+        );
+      })}
     </>
   );
 }
