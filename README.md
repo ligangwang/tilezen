@@ -8,13 +8,14 @@ away. Lifting a tile frees what it was blocking, so the tray is how a player
 reaches a twin that is buried. A full tray takes only a tile that matches one
 in it.
 
-- **Rules**: tap two tiles with the same face to take them off. A tile can be
-  taken when nothing lies on top of it and its left or right side is open.
+- **Rules**: tap a tile to lift it into the tray, then tap its twin and both
+  leave. A tile can be picked when nothing lies on top of it and its left or
+  right side is open.
 - **Every deal can be cleared.** A board is dealt by playing it with blank
   tiles and giving each pair taken off the next face, so the deal comes with
   a way through (`src/engine/board.ts`). Boards up to 72 tiles use each face
-  once, so no move is ever a mistake; bigger boards have sets of four, and
-  the game says the moment a board can no longer be cleared.
+  once; bigger boards have sets of four. The game says when the tray is
+  full and no free tile matches it, and a shuffle or an undo is always free.
 - **Free help**: hints, undo and shuffle are always free and unlimited. A
   hint is the next step of a plan the game keeps up to date as you play. A
   shuffle deals the tiles left so the board can be cleared again (stepping
