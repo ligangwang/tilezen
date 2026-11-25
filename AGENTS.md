@@ -18,10 +18,14 @@ Notes for AI coding agents working on Tile Zen (静心麻将).
 - `src/engine/` is the rules. Keep it free of the DOM so the tests run it in
   Node, and deterministic (the seeded generator in `random.ts`), so a level
   and the daily puzzle deal the same board for everyone.
-- Every deal must stay clearable: deal with `deal()`/`reshuffle()`, which
-  return a plan, never by shuffling faces at random. A new layout needs an
-  even number of tiles, every raised tile resting on the layer below (a test
-  checks), and an `unlock` level after the last one.
+- Every deal must stay clearable: deal with `deal()`/`reshuffle()` in
+  `src/engine/tray.ts`, which return the picks that clear the board, never by
+  shuffling faces at random. A deal buries twins up to `depth` tiles deep and
+  always leaves one place in the tray spare. A new layout needs an even
+  number of tiles, every raised tile resting on the layer below (a test
+  checks), and an `unlock` level between its neighbours'.
+- The tray (`TRAY` in `src/engine/session.ts`) holds four. A picked tile
+  waits there until its twin is picked; a full tray takes only a match.
 - Tile Zen is an original game: its name, layouts, tile drawings and music
   are our own. Don't copy names, art, layouts or sounds from other mahjong
   solitaire games.

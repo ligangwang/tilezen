@@ -51,10 +51,11 @@ async function clearBoard() {
       break;
     }
     fireEvent.click(screen.getByRole("button", { name: /Hint/ }));
-    // Two tiles on the board, or one whose twin already waits in the tray.
-    const hinted = [...document.querySelectorAll(".tile.hinted")];
-    expect(hinted.length + document.querySelectorAll(".tray-place.hinted").length).toBe(2);
-    for (const tile of hinted) fireEvent.click(tile);
+    // The tile to pick, with its twin pointed out too (on the board or in the tray).
+    const next = document.querySelectorAll(".tile.pick-next");
+    expect(next.length).toBe(1);
+    expect(document.querySelectorAll(".tile.hinted, .tray-place.hinted").length).toBe(2);
+    fireEvent.click(next[0]);
     await act(async () => {});
   }
 }

@@ -11,22 +11,25 @@ in it.
 - **Rules**: tap a tile to lift it into the tray, then tap its twin and both
   leave. A tile can be picked when nothing lies on top of it and its left or
   right side is open.
-- **Every deal can be cleared.** A board is dealt by playing it with blank
-  tiles and giving each pair taken off the next face, so the deal comes with
-  a way through (`src/engine/board.ts`). Boards up to 72 tiles use each face
-  once; bigger boards have sets of four. The game says when the tray is
-  full and no free tile matches it, and a shuffle or an undo is always free.
+- **Every deal can be cleared, and needs the tray.** A board is dealt by
+  playing it with blank tiles and a tray: each pick either opens a pair (the
+  tile takes a face and waits) or closes one, so the deal comes with the
+  picks that clear it (`src/engine/tray.ts`). A twin can lie under other
+  tiles, which is why boards can have far more covered tiles than a game
+  played pair by pair. Early levels keep twins within reach; later ones bury
+  them two, then three tiles deep, always leaving a place in the tray spare.
+  The game says when the tray is full and no free tile matches it.
 - **Free help**: hints, undo and shuffle are always free and unlimited. A
-  hint is the next step of a plan the game keeps up to date as you play. A
-  shuffle deals the tiles left so the board can be cleared again (stepping
-  back a move or two if no deal of them can, such as two tiles left stacked).
-- **Big, clear tiles**: strong colours on light tiles, a corner number on
-  every numbered tile, blocked tiles shaded, and a **Large tiles** setting
+  hint is the next pick of a way through that the game keeps up to date as
+  you play, with its twin pointed out. A shuffle puts the tray back and deals
+  the tiles left so the board can be cleared again.
+- **Big, clear tiles**: strong colours on polished light tiles, blocked
+  tiles shaded, and a **Large tiles** setting
   for phones and older players (the board scrolls instead of shrinking).
 - **No hurry**: no timer unless the player turns on the clock. Calm,
   generated music (pentatonic chords and bells, Web Audio) and soft sounds.
-- **Levels**: endless short levels on 14 layouts of our own (Pebble, Stream,
-  Lotus, Stone Bridge, Moon Gate, Lantern, Butterfly, Cloud, Pagoda, Folding
+- **Levels**: endless short levels on 16 layouts of our own (Pebble, Stream,
+  Lotus, Old Well, Stone Bridge, Moon Gate, Drum Tower, Lantern, Butterfly, Cloud, Pagoda, Folding
   Fan, Far Mountains, Twin Peaks, Courtyard, Mountain Temple), from 14 to 120
   tiles. Each layout debuts on its own level and then opens in **Free play**;
   every 10th level plays the biggest open layout.
@@ -62,7 +65,8 @@ To play it inside dingn while developing, open the
 
 ## What's where
 
-- `src/engine/board.ts`: free tiles, dealing, plans, the solver and reshuffles.
+- `src/engine/board.ts`: what each tile touches, and which tiles are free.
+- `src/engine/tray.ts`: dealing for the tray, the solver and reshuffles.
 - `src/engine/session.ts`: one play of a board: moves, undo, hints, shuffles.
 - `src/engine/layouts.ts`: the layouts, drawn as rows of text per layer.
 - `src/levels.ts`: which layout each level plays, the daily puzzle, coins.

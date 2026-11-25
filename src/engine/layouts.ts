@@ -44,6 +44,18 @@ const DEFS: LayoutDef[] = [
     ],
   },
   {
+    // Three layers straight on top of each other: most of it is covered,
+    // which a tray makes playable.
+    id: "well",
+    name: { en: "Old Well", zh: "古井" },
+    unlock: 4,
+    layers: [
+      { rows: ["####", "####"] },
+      { rows: ["####", "####"] },
+      { rows: ["####", "####"] },
+    ],
+  },
+  {
     id: "bridge",
     name: { en: "Stone Bridge", zh: "石桥" },
     unlock: 5,
@@ -60,6 +72,17 @@ const DEFS: LayoutDef[] = [
     layers: [
       { rows: ["..####..", ".##..##.", "##....##", "##....##", ".##..##.", "..####.."] },
       { at: [1, 1], rows: [".#####.", "##...##", "#.....#", "##...##", ".#####."] },
+    ],
+  },
+  {
+    id: "tower",
+    name: { en: "Drum Tower", zh: "鼓楼" },
+    unlock: 8,
+    layers: [
+      { rows: ["####", "####", "####"] },
+      { rows: ["####", "####", "####"] },
+      { rows: ["####", "####", "####"] },
+      { at: [2, 2], rows: ["##", "##"] },
     ],
   },
   {

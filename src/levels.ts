@@ -37,6 +37,15 @@ export function dailyLayout(day: string): Layout {
   return pool[Math.floor(next(rng) * pool.length)];
 }
 
+/**
+ * How many tiles a level's deal makes wait in the tray at once, which is how
+ * deep it buries twins: one at first (a twin is always within reach), then
+ * two, then three, always leaving a place in the tray to spare.
+ */
+export const depthFor = (level: number) => (level <= 3 ? 1 : level <= 12 ? 2 : 3);
+/** The daily puzzle and free play bury twins two deep. */
+export const OPEN_DEPTH = 2;
+
 /** Coins a cleared level pays: more for bigger boards, one more for no help. */
 export const coinsFor = (tiles: number, calm: boolean) =>
   Math.min(10, 2 + Math.floor(tiles / 30) + (calm ? 1 : 0));

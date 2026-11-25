@@ -93,6 +93,7 @@ export function BoardView(props: Props) {
             open ? "free" : "blocked",
             dim && !open && !gone ? "dim" : "",
             hint && hint.includes(i) ? "hinted" : "",
+            hint && hint[hint.length - 1] === i ? "pick-next" : "",
             gone ? "leaving" : "",
             shake === i ? "shake" : "",
           ]

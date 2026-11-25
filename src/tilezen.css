@@ -480,6 +480,11 @@ h2 {
   height: 100%;
   display: block;
 }
+/* The hinted tile's twin is pointed out more quietly than the tile to pick. */
+.tile.hinted:not(.pick-next) .face {
+  border-style: dashed;
+  animation: none;
+}
 .tray-place.hinted .face {
   border: 4px solid #1c7ed6;
   animation: glow 1.1s ease-in-out infinite alternate;

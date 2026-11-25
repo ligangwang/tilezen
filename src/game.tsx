@@ -7,7 +7,7 @@ import { BoardView } from "./board-view";
 import { LAYOUTS, openLayouts, type Layout } from "./engine/layouts";
 import * as S from "./engine/session";
 import { badgesFor, BIG_BOARD } from "./badges";
-import { DAILY_COINS, FREE_LEVELS, coinsFor, dailyLayout, daySeed, layoutFor, levelSeed, today } from "./levels";
+import { DAILY_COINS, FREE_LEVELS, OPEN_DEPTH, coinsFor, dailyLayout, daySeed, depthFor, layoutFor, levelSeed, today } from "./levels";
 import { loadSaved, merge, store, type Prefs, type Saved } from "./save";
 import { FACE_COUNT, THEMES, faceArt, faceLabel, openThemes, themeById, type Theme } from "./themes";
 import * as sound from "./sound";
@@ -120,7 +120,8 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   }, [note]);
 
   function begin(mode: Mode, level: number, layout: Layout, seed: number) {
-    setRun({ mode, level, day, layout, session: S.start(layout.slots, FACE_COUNT, seed), started: Date.now() });
+    const depth = mode === "level" ? depthFor(level) : OPEN_DEPTH;
+    setRun({ mode, level, day, layout, session: S.start(layout.slots, FACE_COUNT, seed, depth), started: Date.now() });
     setHint(null);
     setLeaving([]);
     setTrayLeaving([]);
@@ -342,7 +343,8 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
           </header>
           {/* How much of the board is cleared. */}
           <div className="progress" aria-hidden="true">
-            <i style={{ width: `${100 - (100 * S.tilesLeft(run.session)) / run.layout.slots.length}%` }} />
+            {/* A new board starts the bar empty, without sliding back. */}
+            <i key={run.started} style={{ width: `${100 - (100 * S.tilesLeft(run.session)) / run.layout.slots.length}%` }} />
           </div>
           {locked ? (
             <div className="overlay gate">
