@@ -170,3 +170,24 @@ test("tiles are read out in the player's language", () => {
   const labels = [...document.querySelectorAll(".tile")].map((el) => el.getAttribute("aria-label")!);
   expect(labels.every((l) => /[一-鿿]/.test(l))).toBe(true);
 });
+
+test("the last pair can't be undone into a second win while it leaves", async () => {
+  const { sdk, calls } = fakeSdk(true);
+  mount(sdk);
+  fireEvent.click(screen.getByRole("button", { name: "Play level 1" }));
+  // Play to the last tile, then tap it and at once try to take it back.
+  for (let n = 0; n < 200 && document.querySelectorAll(".tile:not(.leaving)").length > 1; n++) {
+    fireEvent.click(screen.getByRole("button", { name: /Hint/ }));
+    fireEvent.click(document.querySelector(".tile.pick-next")!);
+  }
+  fireEvent.click(screen.getByRole("button", { name: /Hint/ }));
+  fireEvent.click(document.querySelector(".tile.pick-next")!);
+  const undo = screen.getByRole("button", { name: /Undo/ }) as HTMLButtonElement;
+  expect(undo.disabled).toBe(true);
+  fireEvent.click(undo);
+  expect(document.querySelectorAll(".tile:not(.leaving)").length).toBe(0);
+  await screen.findByText("Board cleared");
+  await waitFor(() => expect(calls.earn).toHaveBeenCalled());
+  expect(calls.earn).toHaveBeenCalledTimes(1);
+  expect(calls.roundEnded).toHaveBeenCalledTimes(1);
+});

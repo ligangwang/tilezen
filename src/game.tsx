@@ -65,6 +65,8 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   const [result, setResult] = useState<Result | null>(null);
   const [now, setNow] = useState(Date.now());
   const unlocked = useRef(new Set<string>());
+  // When the run on screen started: a result is shown only for that run.
+  const current = useRef(0);
 
   const reached = saved.cleared + 1;
   const theme = themeById(openThemes(reached).some((th) => th.id === prefs.theme) ? prefs.theme : "classic");
@@ -119,9 +121,11 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     return () => clearTimeout(id);
   }, [note]);
 
-  function begin(mode: Mode, level: number, layout: Layout, seed: number) {
+  function begin(mode: Mode, level: number, layout: Layout, seed: number, on = day) {
     const depth = mode === "level" ? depthFor(level) : OPEN_DEPTH;
-    setRun({ mode, level, day, layout, session: S.start(layout.slots, FACE_COUNT, seed, depth), started: Date.now() });
+    const started = Date.now();
+    current.current = started;
+    setRun({ mode, level, day: on, layout, session: S.start(layout.slots, FACE_COUNT, seed, depth), started });
     setHint(null);
     setLeaving([]);
     setTrayLeaving([]);
@@ -131,10 +135,17 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     setScreen("play");
   }
   const playLevel = (level: number) => begin("level", level, layoutFor(level), levelSeed(level));
-  const playDaily = () => begin("daily", 0, dailyLayout(day), daySeed(day));
+  // Today as it is now: the menu may have been open since yesterday.
+  const playDaily = () => {
+    const on = today();
+    begin("daily", 0, dailyLayout(on), daySeed(on), on);
+  };
   const playFree = (layout: Layout) => begin("free", 0, layout, (Date.now() & 0x7fffffff) | 1);
 
   const locked = run?.mode === "level" && run.level > FREE_LEVELS && !signedIn;
+  // A cleared board takes no more taps or help while its last pair leaves
+  // and the result comes up, so it is finished (and paid) once.
+  const done = !!result || (!!run && S.cleared(run.session));
 
   function update(session: S.Session) {
     setRun((r) => (r ? { ...r, session } : r));
@@ -142,7 +153,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
 
   function onTile(i: number) {
     tapped();
-    if (!run || result) return;
+    if (!run || result || S.cleared(run.session)) return;
     const s = run.session;
     if (!S.free(s, i)) {
       sound.play("blocked");
@@ -185,7 +196,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
 
   function onHint() {
     tapped();
-    if (!run || result) return;
+    if (!run || result || S.cleared(run.session)) return;
     const pair = S.hint(run.session);
     if (!pair) return;
     sound.play("hint");
@@ -195,14 +206,14 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   }
   function onUndo() {
     tapped();
-    if (!run || result || !run.session.history.length) return;
+    if (!run || result || S.cleared(run.session) || !run.session.history.length) return;
     setStreak(0);
     setHint(null);
     update(S.undo(run.session));
   }
   function onShuffle() {
     tapped();
-    if (!run || result) return;
+    if (!run || result || S.cleared(run.session)) return;
     const { session, rewound } = S.shuffle(run.session);
     sound.play("shuffle");
     setStreak(0);
@@ -235,7 +246,9 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
       next.daily = { day: r.day, paid: !first && !!saved.daily?.paid };
       worth = next.daily.paid ? 0 : DAILY_COINS;
     } else if (calm) next.calm = saved.calm + 1;
-    setResult({ coins: null, worth, calm, seconds, opened });
+    // Left for the menu or another board meanwhile: it still counts, unseen.
+    const shown = current.current === r.started;
+    if (shown) setResult({ coins: null, worth, calm, seconds, opened });
     // Progress is saved at once; coins are paid after, on their own.
     commit(next);
     if (!signedIn) return;
@@ -248,7 +261,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
         if (r.mode === "daily" && latest.daily?.day === r.day) commit({ ...latest, daily: { day: r.day, paid: true } });
       } catch {}
     }
-    setResult((res) => (res ? { ...res, coins: paid } : res));
+    if (current.current === r.started) setResult((res) => (res ? { ...res, coins: paid } : res));
     for (const id of badgesFor(next)) {
       if (unlocked.current.has(id)) continue;
       unlocked.current.add(id);
@@ -325,7 +338,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
       {screen === "play" && run && (
         <div className="play">
           <header className="hud">
-            <button type="button" className="hud-button" onClick={() => { setScreen("menu"); setRun(null); }} aria-label={t("Menu")}>
+            <button type="button" className="hud-button" onClick={() => { current.current = 0; setScreen("menu"); setRun(null); }} aria-label={t("Menu")}>
               ☰ <span className="hud-label">{t("Menu")}</span>
             </button>
             <div className="hud-title">
@@ -401,11 +414,11 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
               )}
               <Tray session={run.session} theme={theme} hint={hint} leaving={trayLeaving} />
               <footer className="toolbar">
-                <button type="button" className="tool" onClick={onHint} disabled={!!result}>
+                <button type="button" className="tool" onClick={onHint} disabled={done}>
                   <span className="tool-icon" aria-hidden="true">💡</span>
                   {t("Hint")}
                 </button>
-                <button type="button" className="tool" onClick={onUndo} disabled={!!result || !run.session.history.length}>
+                <button type="button" className="tool" onClick={onUndo} disabled={done || !run.session.history.length}>
                   <span className="tool-icon" aria-hidden="true">↶</span>
                   {t("Undo")}
                 </button>
@@ -413,7 +426,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                   type="button"
                   className={`tool${run.session.deadEnd ? " glow" : ""}`}
                   onClick={() => onShuffle()}
-                  disabled={!!result}
+                  disabled={done}
                 >
                   <span className="tool-icon" aria-hidden="true">⇄</span>
                   {t("Shuffle")}
