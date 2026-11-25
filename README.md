@@ -5,8 +5,9 @@ free tiles to clear the board. Play it at <https://dingn.com/play/tilezen/>.
 
 A picked tile lifts into a tray that holds four; picking its twin takes both
 away. Lifting a tile frees what it was blocking, so the tray is how a player
-reaches a twin that is buried. A full tray takes only a tile that matches one
-in it.
+reaches a twin that is buried. Four different tiles waiting fill the tray,
+and the board is failed: the player tries it again, or takes the last tile
+back.
 
 - **Rules**: tap a tile to lift it into the tray, then tap its twin and both
   leave. A tile can be picked when nothing lies on top of it and its left or
@@ -18,7 +19,8 @@ in it.
   tiles, which is why boards can have far more covered tiles than a game
   played pair by pair. Early levels keep twins within reach; later ones bury
   them two, then three tiles deep, always leaving a place in the tray spare.
-  The game says when the tray is full and no free tile matches it.
+  The tray's rim lights when one place is left, and the game says when no
+  free tile matches the tiles waiting, so the next pick would fail the board.
 - **Free help**: hints, undo and shuffle are always free and unlimited. A
   hint is the next pick of a way through that the game keeps up to date as
   you play, with its twin pointed out. A shuffle puts the tray back and deals

@@ -86,42 +86,50 @@ test("a blocked tile can't be picked, and two matching free tiles go", () => {
   expect(screen.getByText(/14 tiles left/)).toBeTruthy();
 });
 
-test("a picked tile waits in the tray until its twin is picked, and a full tray takes only a match", () => {
+test("a picked tile waits in the tray until its twin is picked, and four different tiles fail the board", async () => {
   const { sdk } = fakeSdk(false);
   mount(sdk);
   fireEvent.click(screen.getByRole("button", { name: "Play level 1" }));
   const held = () => document.querySelectorAll(".tray-place.held:not(.gone)").length;
   const tiles = () => document.querySelectorAll(".tile:not(.leaving)").length;
   expect(document.querySelectorAll(".tray-place").length).toBe(4);
-  // Lift free tiles of different faces until the tray is full.
+  // Lift free tiles of different faces until one place is left.
   const faces = new Set<string>();
-  for (let n = 0; n < 40 && held() < 4; n++) {
-    const next = [...document.querySelectorAll<HTMLElement>(".tile.free")].find((el) => !faces.has(el.getAttribute("aria-label")!));
-    if (!next) break;
+  const stranger = () => [...document.querySelectorAll<HTMLElement>(".tile.free")].find((el) => !faces.has(el.getAttribute("aria-label")!));
+  for (let n = 0; n < 40 && held() < 3; n++) {
+    const next = stranger()!;
     faces.add(next.getAttribute("aria-label")!);
     fireEvent.click(next);
   }
-  expect(held()).toBe(4);
-  expect(tiles()).toBe(10);
+  expect(held()).toBe(3);
+  expect(tiles()).toBe(11);
   // Still 14 to clear: the tray's tiles count.
   expect(screen.getByText(/14 tiles left/)).toBeTruthy();
-  // A free tile of another face is refused, with a word why.
-  const other = [...document.querySelectorAll<HTMLElement>(".tile.free")].find((el) => !faces.has(el.getAttribute("aria-label")!));
-  if (other) {
-    fireEvent.click(other);
-    expect(held()).toBe(4);
-    expect(screen.getByText("The tray is full. Pick a tile that matches one in it.")).toBeTruthy();
-  }
-  // A twin of a waiting tile leaves with it.
+  // A twin of a waiting tile leaves with it, and undo brings both back.
   const twin = [...document.querySelectorAll<HTMLElement>(".tile.free")].find((el) => faces.has(el.getAttribute("aria-label")!));
   if (twin) {
     fireEvent.click(twin);
-    expect(held()).toBe(3);
+    expect(held()).toBe(2);
     expect(screen.getByText(/12 tiles left/)).toBeTruthy();
-    // Undo brings both back: one to the board, one to the tray.
     fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
-    expect(held()).toBe(4);
+    expect(held()).toBe(3);
   }
+  // A fourth different tile fills the tray: the board is lost, and says so.
+  fireEvent.click(stranger()!);
+  expect(held()).toBe(4);
+  expect(await screen.findByText("The tray is full", {}, { timeout: 3000 })).toBeTruthy();
+  // No tile can be picked now.
+  fireEvent.click(document.querySelector<HTMLElement>(".tile.free")!);
+  expect(held()).toBe(4);
+  // Taking the last tile back carries on from where it was.
+  fireEvent.click(screen.getByRole("button", { name: "Take the last tile back" }));
+  expect(held()).toBe(3);
+  expect(screen.queryByText("The tray is full")).toBeNull();
+  // Fail again, and try again: the same board, whole.
+  fireEvent.click(stranger()!);
+  fireEvent.click(await screen.findByRole("button", { name: "Try again" }, { timeout: 3000 }));
+  expect(held()).toBe(0);
+  expect(screen.getByText(/14 tiles left/)).toBeTruthy();
 });
 
 test("a signed-out player meets the sign-in gate after level 5, and dingn's sign-in box on a result", async () => {
@@ -137,7 +145,8 @@ test("a signed-out player meets the sign-in gate after level 5, and dingn's sign
   await clearBoard();
   expect(calls.earn).not.toHaveBeenCalled();
   expect(calls.showSignIn).toHaveBeenCalledWith(["rewards"]);
-});
+  // The day's board can be a big one, which takes a while to play here.
+}, 30000);
 
 test("the game speaks Chinese", () => {
   const { sdk } = fakeSdk(false, "zh-CN");

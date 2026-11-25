@@ -25,7 +25,12 @@ Notes for AI coding agents working on Tile Zen (静心麻将).
   number of tiles, every raised tile resting on the layer below (a test
   checks), and an `unlock` level between its neighbours'.
 - The tray (`TRAY` in `src/engine/session.ts`) holds four. A picked tile
-  waits there until its twin is picked; a full tray takes only a match.
+  waits there until its twin is picked. Four different tiles waiting fail
+  the board (`failed`): the player tries it again or takes the last tile
+  back. So play, hints and plans keep to three waiting (`ROOM`).
+- Every board has a score (`score` in `src/engine/session.ts`): pairs, more
+  for pairs in a row, less for help, a bonus for a calm clear. Nothing is
+  timed.
 - Tile Zen is an original game: its name, layouts, tile drawings and sounds
   are our own. Don't copy names, art, layouts or sounds from other mahjong
   solitaire games.

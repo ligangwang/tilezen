@@ -42,7 +42,6 @@
   "Sound effects": "音效",
   "Stepped back {0} moves so the tiles could be shuffled.": "已退回 {0} 步，好让牌能重新洗开。",
   "Tap a tile to lift it into the tray, then tap its twin and both leave. A tile can be picked when nothing lies on top of it and its left or right side is open.": "点一张牌，它会升到牌槽里；再点另一张相同的牌，两张就一起消掉。一张牌上面没有压着别的牌，并且左边或右边是空的，才可以拿。",
-  "The tray holds up to four tiles, so you can lift a tile out of the way to reach one under it.": "牌槽最多放四张牌，可以先把挡路的牌拿开，好拿到下面的牌。",
   "Tile Zen": "静心麻将",
   "Tile themes": "牌面主题",
   "Tiles you can't take yet are shaded.": "暂时不能拿的牌会变暗。",
@@ -81,8 +80,12 @@
   "Star {0}": "星星 {0}",
   "Lantern {0}": "灯笼 {0}",
   "Cloud {0}": "云朵 {0}",
-  "The tray is full. Pick a tile that matches one in it.": "牌槽满了，请点一张和牌槽里相同的牌。",
   "Tray: {0} of {1} places taken": "牌槽：已放 {0} 张，共 {1} 格",
-  "The tray is full and no free tile matches it.": "牌槽满了，也没有能和它配对的牌。",
-  "Shuffle the tiles, free, or undo a move.": "免费洗牌，或者撤回一步。"
+  "The tray is full": "牌槽满了",
+  "Four different tiles are waiting and none has its twin, so this board is lost.": "牌槽里有四张不同的牌，都没等到另一张，这一局失败了。",
+  "Try again": "再试一次",
+  "Take the last tile back": "撤回最后一张牌",
+  "One place left in the tray, and no free tile matches the tiles in it.": "牌槽只剩一个位置，也没有能和槽里的牌配对的牌。",
+  "Shuffle or undo: one more tile would fill the tray.": "请洗牌或撤回：再拿一张牌，牌槽就满了。",
+  "The tray holds four tiles, so you can lift a tile out of the way to reach one under it. Fill it with four different tiles and the board is lost.": "牌槽能放四张牌，可以先把挡路的牌拿开，好拿到下面的牌。牌槽里放满四张不同的牌，这一局就失败了。"
 }

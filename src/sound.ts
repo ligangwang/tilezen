@@ -162,7 +162,7 @@ function rattle(dest: AudioNode, when: number, count: number, over: number, gain
   for (let i = 0; i < count; i++) clack(dest, when + (i / count) * over + Math.random() * 0.03, 0.8 + Math.random() * 0.6, gain * (0.5 + Math.random() * 0.5));
 }
 
-export type Sfx = "tap" | "select" | "land" | "match" | "blocked" | "shuffle" | "deal" | "undo" | "hint" | "win";
+export type Sfx = "tap" | "select" | "land" | "match" | "blocked" | "shuffle" | "deal" | "undo" | "hint" | "win" | "fail";
 /** `step` raises a match's notes a little with each one in a row. */
 export function play(sfx: Sfx, step = 0) {
   if (!soundOn) return;
@@ -221,6 +221,13 @@ export function play(sfx: Sfx, step = 0) {
     case "deal":
       // A new board laid out, tile after tile.
       rattle(c.sfx, t, 14, 0.7, 0.3);
+      break;
+    case "fail":
+      // The last place taken: a heavy knock, and two low notes falling.
+      clack(c.sfx, t, 0.7, 1);
+      knock(c.sfx, t, 95, 0.25, 0.3);
+      tone(c.sfx, note(2, 50), t + 0.12, { type: "triangle", attack: 0.02, release: 0.9, gain: 0.1 });
+      tone(c.sfx, note(0, 50), t + 0.42, { type: "triangle", attack: 0.02, release: 1.6, gain: 0.1 });
       break;
     case "win":
       [5, 7, 9, 10, 12].forEach((d, i) => bell(c.sfx, note(d), t + i * 0.13, 0.12, 2.4));

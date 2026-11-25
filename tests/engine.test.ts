@@ -40,7 +40,7 @@ test("every layout has an even number of tiles, no two overlapping on a layer", 
   assert.equal(unlocks[0], 1);
 });
 
-const works = (s: S.Session) => !!s.plan && orderWorks(s.g, s.present, s.faces, s.tray, s.plan, S.TRAY);
+const works = (s: S.Session) => !!s.plan && orderWorks(s.g, s.present, s.faces, s.tray, s.plan, S.ROOM);
 
 test("every deal of every layout comes with picks that clear it, using the tray as deep as asked", () => {
   for (const l of LAYOUTS) {
@@ -138,34 +138,52 @@ test("undo takes back one pick at a time, and a shuffle can be undone", () => {
   assert.deepEqual(undone.present, held.present);
 });
 
-test("the tray holds four tiles, takes only a match when full, and frees what a lifted tile blocked", () => {
+test("the tray holds four tiles: a twin leaves with its mate, and four different tiles fail the board", () => {
   const start = S.start(LAYOUTS.find((x) => x.id === "mountain")!.slots, FACE_COUNT, 3, 3);
   assert.equal(S.TRAY, 4);
-  // Lift free tiles of different faces until the tray is full.
+  assert.equal(S.ROOM, 3);
+  // Lift free tiles of different faces until one place is left.
   let s = start;
-  while (s.tray.length < S.TRAY) {
-    const i = s.present.findIndex((on, k) => on && S.free(s, k) && S.twinInTray(s, k) === undefined);
+  const stranger = () => s.present.findIndex((on, k) => on && S.free(s, k) && S.twinInTray(s, k) === undefined);
+  while (s.tray.length < S.ROOM) {
+    const i = stranger();
     assert.ok(i >= 0);
+    assert.equal(S.fills(s, i), false);
     const before = s.present.filter((_, k) => S.free(s, k)).length;
     s = S.pick(s, i)!;
     // The tile left the board, and nothing it touched got more blocked.
     assert.equal(s.present[i], false);
     assert.ok(s.present.filter((_, k) => S.free(s, k)).length >= before - 1);
+    assert.equal(S.failed(s), false);
   }
   assert.equal(S.tilesLeft(s), S.tilesLeft(start));
-  // Full: a tile of another face is refused, a twin is taken with its mate.
-  const stranger = s.present.findIndex((on, k) => on && S.free(s, k) && S.twinInTray(s, k) === undefined);
-  if (stranger >= 0) assert.equal(S.pick(s, stranger), null);
+  // A twin of a waiting tile is taken with its mate.
   const twin = s.present.findIndex((on, k) => on && S.free(s, k) && S.twinInTray(s, k) !== undefined);
   if (twin >= 0) {
+    assert.equal(S.fills(s, twin), false);
     const after = S.pick(s, twin)!;
-    assert.equal(after.tray.length, S.TRAY - 1);
+    assert.equal(after.tray.length, S.ROOM - 1);
     assert.equal(S.tilesLeft(after), S.tilesLeft(s) - 2);
     assert.deepEqual(S.undo(after).tray, s.tray);
-  } else assert.ok(s.deadEnd, "a full tray with no twin free is a dead end");
+  } else assert.ok(s.deadEnd, "one place left and no twin free is a dead end");
+  // A fourth different tile fills the tray: the board is failed, and takes no more picks.
+  const fourth = stranger();
+  assert.ok(fourth >= 0);
+  assert.ok(S.fills(s, fourth));
+  const full = S.pick(s, fourth)!;
+  assert.ok(S.failed(full));
+  assert.equal(full.plan, null);
+  assert.equal(S.hint(full), null);
+  assert.ok(full.present.every((_, k) => !S.canPick(full, k)));
+  assert.equal(S.pick(full, full.present.findIndex((on, k) => on && S.free(full, k))), null);
+  // Undo takes the fourth tile back, and play goes on.
+  const back = S.undo(full);
+  assert.equal(S.failed(back), false);
+  assert.deepEqual(back.tray, s.tray);
+  assert.deepEqual(back.present, s.present);
 });
 
-test("random play keeps a way through where there is one, and a full tray with no twin is the dead end", () => {
+test("random play that never fills the tray keeps a way through, and one place left with no twin is the dead end", () => {
   const l = LAYOUTS.find((x) => x.id === "mountain")!;
   let deadEnds = 0;
   let planned = 0;
@@ -178,20 +196,23 @@ test("random play keeps a way through where there is one, and a full tray with n
       if (s.plan) assert.ok(works(s), "a kept plan must clear the board");
       if (s.deadEnd) {
         deadEnds++;
-        assert.equal(s.tray.length, S.TRAY);
+        assert.equal(s.tray.length, S.ROOM);
         assert.equal(S.hint(s), null);
-        assert.equal(solve(s.g, s.present, s.faces, s.tray, S.TRAY), null);
+        assert.equal(solve(s.g, s.present, s.faces, s.tray, S.ROOM), null);
         s = S.shuffle(s).session;
         assert.equal(s.deadEnd, false);
         assert.ok(works(s));
         continue;
       }
       // Mostly random picks, so the tray fills with tiles the plan didn't want.
-      const pickable = s.present.flatMap((_, i) => (S.canPick(s, i) ? [i] : []));
+      // A hint never fills the tray, and neither does this player.
+      const pickable = s.present.flatMap((_, i) => (S.canPick(s, i) && !S.fills(s, i) ? [i] : []));
       assert.ok(pickable.length > 0, "not a dead end, so something can be picked");
       const tip = S.hint(s);
       const i = tip && below(rng, 2) === 0 ? tip[tip.length - 1] : pickable[below(rng, pickable.length)];
+      assert.equal(S.fills(s, i), false, "a hint must not fill the tray");
       s = S.pick(s, i)!;
+      assert.equal(S.failed(s), false);
       picks++;
       if (s.plan) planned++;
     }

@@ -20,6 +20,8 @@ type Run = {
   level: number;
   day: string;
   layout: Layout;
+  /** What the board was dealt from, to deal the same one again. */
+  seed: number;
   session: S.Session;
   started: number;
 };
@@ -103,6 +105,8 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   // Points of pairs that have been picked but have not popped yet: the
   // score on screen goes up when the pair is seen to go.
   const [pending, setPending] = useState(0);
+  // The tray filled with four different tiles: the card that says so is up.
+  const [lost, setLost] = useState(false);
   // Points drifting up from where they were won or lost.
   const [floats, setFloats] = useState<{ id: number; text: string; minus: boolean; x?: number; y?: number }[]>([]);
   const floatId = useRef(0);
@@ -169,7 +173,8 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     const depth = mode === "level" ? depthFor(level) : OPEN_DEPTH;
     const started = Date.now();
     current.current = started;
-    setRun({ mode, level, day: on, layout, session: S.start(layout.slots, FACE_COUNT, seed, depth), started });
+    setRun({ mode, level, day: on, layout, seed, session: S.start(layout.slots, FACE_COUNT, seed, depth), started });
+    setLost(false);
     setHint(null);
     flights.current.clear();
     fx.current?.clear();
@@ -192,7 +197,13 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   const locked = run?.mode === "level" && run.level > FREE_LEVELS && !signedIn;
   // A cleared board takes no more taps or help while its last pair leaves
   // and the result comes up, so it is finished (and paid) once.
-  const done = !!result || (!!run && S.cleared(run.session));
+  const done = !!result || (!!run && (S.cleared(run.session) || S.failed(run.session)));
+  /** The same board again, after a failed one. */
+  function retry() {
+    if (!run) return;
+    sdk.roundEnded();
+    begin(run.mode, run.level, run.layout, run.seed, run.day);
+  }
 
   function update(session: S.Session) {
     setRun((r) => (r ? { ...r, session } : r));
@@ -200,23 +211,15 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
 
   function onTile(i: number) {
     tapped();
-    if (!run || result || S.cleared(run.session)) return;
+    if (!run || done) return;
     const s = run.session;
-    if (!S.free(s, i)) {
-      sound.play("blocked");
-      update(S.miss(s));
-      setShake(i);
-      setTimeout(() => setShake((v) => (v === i ? null : v)), 400);
-      return;
-    }
     const next = S.pick(s, i);
     if (!next) {
-      // Free, but the tray is full of other tiles.
+      // Blocked: it will not move.
       sound.play("blocked");
       update(S.miss(s));
       setShake(i);
       setTimeout(() => setShake((v) => (v === i ? null : v)), 400);
-      setNote(t("The tray is full. Pick a tile that matches one in it."));
       return;
     }
     setHint(null);
@@ -227,8 +230,14 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     sound.play("select");
     const started = run.started;
     if (next.tray.length > s.tray.length) {
-      // It waits in the tray for its twin.
-      setTimeout(() => current.current === started && sound.play("land"), FLY_MS);
+      // It waits in the tray for its twin; as the fourth to wait, it fills
+      // the tray and the board is failed, which the player sees once it lands.
+      const full = S.failed(next);
+      setTimeout(() => {
+        if (current.current !== started) return;
+        sound.play(full ? "fail" : "land");
+        if (full) setTimeout(() => current.current === started && setLost(true), 350);
+      }, FLY_MS);
       return;
     }
     const gain = next.points - s.points;
@@ -277,6 +286,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
   function onUndo() {
     tapped();
     if (!run || result || S.cleared(run.session) || !run.session.history.length) return;
+    setLost(false);
     sound.play("undo");
     float(`−${S.HELP_COST.undo}`, true);
     setHint(null);
@@ -497,8 +507,8 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
               />
               {!result && run.session.deadEnd && (
                 <div className="stuck" role="status">
-                  <strong>{t("The tray is full and no free tile matches it.")}</strong>
-                  <span>{t("Shuffle the tiles, free, or undo a move.")}</span>
+                  <strong>{t("One place left in the tray, and no free tile matches the tiles in it.")}</strong>
+                  <span>{t("Shuffle or undo: one more tile would fill the tray.")}</span>
                 </div>
               )}
               {floats.filter((f) => f.x !== undefined).map((f) => (
@@ -543,6 +553,28 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                 )}
               </footer>
             </>
+          )}
+          {lost && !result && S.failed(run.session) && (
+            <div className="overlay lost">
+              <div className="panel">
+                <p className="eyebrow">
+                  {run.mode === "level" ? t("Level {0}", String(run.level)) : run.mode === "daily" ? t("Daily puzzle") : t("Free play")}
+                </p>
+                <h2>{t("The tray is full")}</h2>
+                <p>{t("Four different tiles are waiting and none has its twin, so this board is lost.")}</p>
+                <div className="actions">
+                  <button type="button" className="big primary" onClick={retry}>
+                    {t("Try again")}
+                  </button>
+                  <button type="button" className="big" onClick={onUndo}>
+                    {t("Take the last tile back")}
+                  </button>
+                  <button type="button" className="big" onClick={() => { sdk.roundEnded(); current.current = 0; setScreen("menu"); setRun(null); }}>
+                    {t("Menu")}
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
           <canvas className="fx" ref={fxCanvas} aria-hidden="true" />
           {result && (
@@ -695,7 +727,7 @@ function Menu(props: {
         <details className="how">
           <summary>{t("How to play")}</summary>
           <p>{t("Tap a tile to lift it into the tray, then tap its twin and both leave. A tile can be picked when nothing lies on top of it and its left or right side is open.")}</p>
-          <p>{t("The tray holds up to four tiles, so you can lift a tile out of the way to reach one under it.")}</p>
+          <p>{t("The tray holds four tiles, so you can lift a tile out of the way to reach one under it. Fill it with four different tiles and the board is lost.")}</p>
           <p>{t("Every board can be cleared. Hints, undo and shuffle are always free, and there is no clock unless you turn it on.")}</p>
         </details>
       </div>
@@ -820,7 +852,7 @@ function Tray({
   const over = leaving.filter((g) => g.slot === null);
   return (
     <ul
-      className={`tray${session.tray.length >= S.TRAY ? " full" : ""}`}
+      className={`tray${session.tray.length >= S.TRAY ? " full" : session.tray.length >= S.ROOM ? " tight" : ""}`}
       aria-label={t("Tray: {0} of {1} places taken", String(session.tray.length), String(S.TRAY))}
     >
       {places.map(({ id, gone }) =>

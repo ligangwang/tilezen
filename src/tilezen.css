@@ -774,16 +774,38 @@ h2 {
   background: none;
   box-shadow: none;
 }
-/* A full tray takes only a match: its rim lights. */
-.tray.full::before {
+/* One place left: the rim lights as a warning, since one more tile that
+   is no twin fails the board. Full, it turns red. */
+.tray.tight::before {
   box-shadow:
     inset 0 1px 0 rgba(255, 214, 160, 0.45),
     inset 0 -3px 0 rgba(0, 0, 0, 0.28),
     0 0 0 2.5px #ffcf4a,
     0 0 18px 2px rgba(255, 207, 74, 0.55);
 }
+.tray.tight .tray-place:not(.held) {
+  animation: last-place 1s ease-in-out infinite alternate;
+}
+@keyframes last-place {
+  to {
+    box-shadow:
+      inset 0 2px 5px rgba(0, 0, 0, 0.55),
+      0 0 0 2px rgba(255, 207, 74, 0.9);
+  }
+}
+.tray.full::before {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 214, 160, 0.45),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.28),
+    0 0 0 2.5px #ff6b57,
+    0 0 20px 4px rgba(255, 90, 70, 0.6);
+}
+.lost .panel h2 {
+  color: #a3352a;
+}
 @media (prefers-reduced-motion: reduce) {
-  .tray-place.hinted .face {
+  .tray-place.hinted .face,
+  .tray.tight .tray-place {
     animation: none;
   }
 }

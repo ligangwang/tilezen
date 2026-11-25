@@ -6,14 +6,17 @@
 // The tray: picking a free tile lifts it off the board into the tray, which
 // holds up to TRAY tiles. Picking a tile whose twin is waiting there takes
 // both away. Lifting a tile frees what it was blocking, so the tray is how a
-// player digs for a twin that is buried; a full tray takes only a tile that
-// matches one in it. Boards are dealt to need it (tray.ts).
+// player digs for a twin that is buried. Four different tiles waiting fill
+// the tray and the board is failed, so a player may let three wait and no
+// more. Boards are dealt to need the tray, and never all of it (tray.ts).
 import { geometry, isFree, matches, type Geometry, type Slot } from "./board";
 import { deal, orderWorks, reshuffle, solve, type Order } from "./tray";
 import type { Rng } from "./random";
 
-/** How many tiles the tray holds. */
+/** How many tiles the tray holds: with it full, the board is failed. */
 export const TRAY = 4;
+/** The most tiles that can wait in the tray with the board still in play. */
+export const ROOM = TRAY - 1;
 
 type Step =
   /** A tile went into the tray. */
@@ -33,7 +36,10 @@ export type Session = {
   depth: number;
   /** Picks that clear the board and the tray from here, or null when none was found. */
   plan: Order | null;
-  /** True when no tile can be picked: the tray is full and nothing free matches it. */
+  /**
+   * True when any pick would fail the board: the tray has one place left
+   * and no free tile matches a tile in it. Shuffle or undo is the way on.
+   */
   deadEnd: boolean;
   history: Step[];
   rng: Rng;
@@ -106,13 +112,16 @@ export const score = (s: Session) => Math.max(0, s.points - helpCost(s)) + calmB
 export const miss = (s: Session): Session => (s.streak ? { ...s, streak: 0 } : s);
 /** The tile in the tray with the face of tile `i`, if there is one. */
 export const twinInTray = (s: Session, i: number) => s.tray.find((j) => s.faces[j] === s.faces[i]);
-/** Whether tile `i` can be picked now: free, and the tray takes it. */
-export const canPick = (s: Session, i: number) =>
-  free(s, i) && (s.tray.length < TRAY || twinInTray(s, i) !== undefined);
+/** The tray is full of different tiles: the board is failed (undo takes the last one back). */
+export const failed = (s: Session) => s.tray.length >= TRAY;
+/** Whether tile `i` can be picked now: free, on a board still in play. */
+export const canPick = (s: Session, i: number) => free(s, i) && !failed(s);
+/** Whether picking tile `i` would fill the tray and fail the board. */
+export const fills = (s: Session, i: number) => s.tray.length >= ROOM && twinInTray(s, i) === undefined;
 
-/** No tile can be picked: a full tray, and no free tile matches one in it. */
+/** Any pick would fill the tray: one place left, and no free tile matches a tile in it. */
 function noPick(g: Geometry, present: boolean[], faces: number[], tray: number[]) {
-  if (tray.length < TRAY || !present.some(Boolean)) return false;
+  if (tray.length !== ROOM || !present.some(Boolean)) return false;
   const waiting = new Set(tray.map((j) => faces[j]));
   return !present.some((on, i) => on && waiting.has(faces[i]) && isFree(g, present, i));
 }
@@ -124,18 +133,20 @@ function noPick(g: Geometry, present: boolean[], faces: number[], tray: number[]
  */
 function planAfter(s: Session, i: number, present: boolean[], tray: number[]): Order | null {
   if (!present.some(Boolean) && !tray.length) return [];
+  // A full tray is the end; and a way through never fills it.
+  if (tray.length >= TRAY) return null;
   if (s.plan) {
     if (s.plan[0] === i) return s.plan.slice(1);
     const rest = s.plan.filter((t) => t !== i);
-    if (rest.length === s.plan.length - 1 && orderWorks(s.g, present, s.faces, tray, rest, TRAY)) return rest;
+    if (rest.length === s.plan.length - 1 && orderWorks(s.g, present, s.faces, tray, rest, ROOM)) return rest;
   }
-  return solve(s.g, present, s.faces, tray, TRAY, BUDGET);
+  return solve(s.g, present, s.faces, tray, ROOM, BUDGET);
 }
 
 /**
  * Picks the free tile `i`: it leaves with its twin if one waits in the tray,
- * otherwise it waits there itself. Null when it can't be picked (blocked, or
- * the tray is full of other faces).
+ * otherwise it waits there itself, and as the fourth to wait it fails the
+ * board. Null when it can't be picked (blocked, or the board has failed).
  */
 export function pick(s: Session, i: number): Session | null {
   if (!canPick(s, i)) return null;
@@ -231,8 +242,9 @@ export function shuffle(s: Session): { session: Session; rewound: number } {
  * Tiles to point out, the last of them the one to pick next, the others its
  * twin (in the tray, or on the board even when it is still covered, so the
  * player sees what the pick is for). It follows the plan; without one it
- * takes a free twin of a waiting tile, then any pair that is free. Null when
- * there is nothing to suggest.
+ * takes a free twin of a waiting tile, then any pair that is free. It never
+ * points at a pick that would fill the tray. Null when there is nothing to
+ * suggest.
  */
 export function hint(s: Session): number[] | null {
   const twinOf = (i: number) => {
@@ -246,12 +258,14 @@ export function hint(s: Session): number[] | null {
     const twin = twinOf(i);
     return twin >= 0 ? [twin, i] : [i];
   };
+  if (failed(s)) return null;
   if (s.plan?.length && canPick(s, s.plan[0])) return point(s.plan[0]);
   for (const j of s.tray) {
     const twin = s.present.findIndex((on, i) => on && s.faces[i] === s.faces[j] && free(s, i));
     if (twin >= 0) return [j, twin];
   }
-  if (s.tray.length >= TRAY) return null;
+  // Never a pick that would fill the tray.
+  if (s.tray.length >= ROOM) return null;
   const pair = available(s)[0];
   return pair ? [pair[1], pair[0]] : null;
 }
