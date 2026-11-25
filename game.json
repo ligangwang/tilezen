@@ -1,17 +1,32 @@
 {
   "id": "tilezen",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "title": {
     "en": "Tile Zen",
-    "zh": "静心麻将"
+    "zh": "静心麻将",
+    "es": "Tile Zen",
+    "pt-BR": "Tile Zen",
+    "id": "Tile Zen",
+    "ja": "タイルゼン",
+    "ko": "타일 젠"
   },
   "description": {
-    "en": "Calm tile-matching solitaire: match pairs of free tiles to clear the board. Big, clear tiles with a large-tile mode, every deal can be cleared, free hints, undo and shuffle, a daily puzzle, and new layouts and tile themes as you go.",
-    "zh": "轻松的麻将消除接龙：配对可以拿的牌，把牌桌清空。牌大清晰，还有大号牌模式；每一局都能消完，提示、撤回和洗牌全免费；有每日一局，玩得越多，开放的牌阵和牌面主题越多。"
+    "en": "Calm tile-matching solitaire with real-looking tiles: lift tiles into a tray of four and match their twins to clear the board. Every deal can be cleared, hints, undo and shuffle are free, and there is a score to beat, challenges for friends, a daily puzzle and new layouts and tile themes as you go.",
+    "zh": "安静的麻将消除接龙，牌面逼真：把牌拿进四格牌槽，配上另一张相同的牌，把牌桌清空。每一局都能消完，提示、撤回和洗牌全免费；有得分可以比拼，可以向朋友发起挑战，还有每日一局，玩得越多，开放的牌阵和牌面主题越多。",
+    "es": "Solitario sereno de fichas con aspecto real: sube fichas a una bandeja de cuatro y emparéjalas para despejar el tablero. Todos los repartos tienen solución, y las pistas, deshacer y mezclar son gratis. Con puntuación, retos para amigos, un reto diario y nuevos diseños y temas al avanzar.",
+    "pt-BR": "Paciência serena de peças com aparência real: leve peças a uma bandeja de quatro e combine os pares para limpar o tabuleiro. Toda partida tem solução, e dicas, desfazer e embaralhar são grátis. Com pontuação, desafios para amigos, um desafio diário e novos layouts e temas pelo caminho.",
+    "id": "Solitaire ubin yang tenang dengan ubin tampak nyata: angkat ubin ke baki berisi empat dan cocokkan kembarannya untuk membersihkan papan. Setiap papan pasti bisa selesai, petunjuk, urungkan, dan acak gratis. Ada skor, tantangan untuk teman, teka-teki harian, serta tata letak dan tema baru.",
+    "ja": "本物のような牌で遊ぶ、落ち着いた牌合わせソリティア。牌を四枚入りのトレイに上げ、同じ牌とペアにして盤面をクリアします。どの盤面も必ずクリアでき、ヒント・戻す・シャッフルは無料。スコア、友だちへのチャレンジ、今日の一局があり、進むほど新しい配置と牌のテーマが開きます。",
+    "ko": "진짜 같은 패로 즐기는 차분한 패 맞추기 솔리테어. 패를 네 칸 트레이에 올리고 같은 패와 짝지어 판을 비우세요. 모든 판은 반드시 풀 수 있고 힌트, 되돌리기, 섞기는 무료입니다. 점수, 친구에게 보내는 도전, 오늘의 퍼즐이 있고, 진행할수록 새 배치와 패 테마가 열립니다."
   },
   "languages": [
     "en",
-    "zh-CN"
+    "zh-CN",
+    "es",
+    "pt-BR",
+    "id",
+    "ja",
+    "ko"
   ],
   "category": "casual",
   "entry": "index.html",
@@ -23,7 +38,12 @@
       "level": 5,
       "title": {
         "en": "Clear level 5",
-        "zh": "通过第 5 关"
+        "zh": "通过第 5 关",
+        "es": "Supera el nivel 5",
+        "pt-BR": "Conclua o nível 5",
+        "id": "Selesaikan level 5",
+        "ja": "レベル 5 をクリア",
+        "ko": "레벨 5 클리어"
       }
     },
     {
@@ -32,7 +52,12 @@
       "level": 10,
       "title": {
         "en": "Clear level 10",
-        "zh": "通过第 10 关"
+        "zh": "通过第 10 关",
+        "es": "Supera el nivel 10",
+        "pt-BR": "Conclua o nível 10",
+        "id": "Selesaikan level 10",
+        "ja": "レベル 10 をクリア",
+        "ko": "레벨 10 클리어"
       }
     },
     {
@@ -41,7 +66,12 @@
       "level": 25,
       "title": {
         "en": "Clear level 25",
-        "zh": "通过第 25 关"
+        "zh": "通过第 25 关",
+        "es": "Supera el nivel 25",
+        "pt-BR": "Conclua o nível 25",
+        "id": "Selesaikan level 25",
+        "ja": "レベル 25 をクリア",
+        "ko": "레벨 25 클리어"
       }
     },
     {
@@ -50,7 +80,12 @@
       "level": 50,
       "title": {
         "en": "Clear level 50",
-        "zh": "通过第 50 关"
+        "zh": "通过第 50 关",
+        "es": "Supera el nivel 50",
+        "pt-BR": "Conclua o nível 50",
+        "id": "Selesaikan level 50",
+        "ja": "レベル 50 をクリア",
+        "ko": "레벨 50 클리어"
       }
     },
     {
@@ -59,7 +94,12 @@
       "level": 100,
       "title": {
         "en": "Clear level 100",
-        "zh": "通过第 100 关"
+        "zh": "通过第 100 关",
+        "es": "Supera el nivel 100",
+        "pt-BR": "Conclua o nível 100",
+        "id": "Selesaikan level 100",
+        "ja": "レベル 100 をクリア",
+        "ko": "레벨 100 클리어"
       }
     },
     {
@@ -68,7 +108,12 @@
       "level": 250,
       "title": {
         "en": "Clear level 250",
-        "zh": "通过第 250 关"
+        "zh": "通过第 250 关",
+        "es": "Supera el nivel 250",
+        "pt-BR": "Conclua o nível 250",
+        "id": "Selesaikan level 250",
+        "ja": "レベル 250 をクリア",
+        "ko": "레벨 250 클리어"
       }
     },
     {
@@ -77,7 +122,12 @@
       "icon": "heart",
       "title": {
         "en": "Clear a board with no hints, undos or shuffles",
-        "zh": "不用提示、撤回和洗牌消完一局"
+        "zh": "不用提示、撤回和洗牌消完一局",
+        "es": "Despeja un tablero sin pistas, sin deshacer y sin mezclar",
+        "pt-BR": "Limpe um tabuleiro sem dicas, sem desfazer e sem embaralhar",
+        "id": "Bersihkan papan tanpa petunjuk, urungkan, atau acak",
+        "ja": "ヒント・戻す・シャッフルなしで盤面をクリア",
+        "ko": "힌트, 되돌리기, 섞기 없이 판 비우기"
       }
     },
     {
@@ -86,7 +136,12 @@
       "icon": "stars",
       "title": {
         "en": "Clear 25 boards with no help",
-        "zh": "不靠帮助消完 25 局"
+        "zh": "不靠帮助消完 25 局",
+        "es": "Despeja 25 tableros sin ayuda",
+        "pt-BR": "Limpe 25 tabuleiros sem ajuda",
+        "id": "Bersihkan 25 papan tanpa bantuan",
+        "ja": "ヘルプなしで 25 回クリア",
+        "ko": "도움 없이 25판 비우기"
       }
     },
     {
@@ -95,7 +150,12 @@
       "icon": "crown",
       "title": {
         "en": "Clear a board of 100 tiles or more",
-        "zh": "消完一局 100 张以上的牌"
+        "zh": "消完一局 100 张以上的牌",
+        "es": "Despeja un tablero de 100 fichas o más",
+        "pt-BR": "Limpe um tabuleiro de 100 peças ou mais",
+        "id": "Bersihkan papan berisi 100 ubin atau lebih",
+        "ja": "100 枚以上の盤面をクリア",
+        "ko": "패 100개 이상의 판 비우기"
       }
     },
     {
@@ -104,7 +164,12 @@
       "icon": "clock",
       "title": {
         "en": "Finish a daily puzzle",
-        "zh": "完成一次每日一局"
+        "zh": "完成一次每日一局",
+        "es": "Termina un reto diario",
+        "pt-BR": "Termine um desafio diário",
+        "id": "Selesaikan satu teka-teki harian",
+        "ja": "今日の一局を 1 回クリア",
+        "ko": "오늘의 퍼즐 한 번 완료"
       }
     },
     {
@@ -113,7 +178,12 @@
       "icon": "trophy",
       "title": {
         "en": "Finish 7 daily puzzles",
-        "zh": "完成 7 次每日一局"
+        "zh": "完成 7 次每日一局",
+        "es": "Termina 7 retos diarios",
+        "pt-BR": "Termine 7 desafios diários",
+        "id": "Selesaikan 7 teka-teki harian",
+        "ja": "今日の一局を 7 回クリア",
+        "ko": "오늘의 퍼즐 7번 완료"
       }
     }
   ]

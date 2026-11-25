@@ -21,6 +21,15 @@ body {
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
 }
+/* Japanese and Korean are set in their own faces, not Chinese ones. */
+:lang(ja) body {
+  --display: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif CJK JP", "Noto Serif JP", serif;
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Yu Gothic UI", "Noto Sans CJK JP", "Noto Sans JP", Meiryo, sans-serif;
+}
+:lang(ko) body {
+  --display: "AppleMyungjo", "Nanum Myeongjo", "Noto Serif CJK KR", "Noto Serif KR", Batang, serif;
+  font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans CJK KR", "Noto Sans KR", sans-serif;
+}
 button {
   font: inherit;
   cursor: pointer;
@@ -964,6 +973,10 @@ h2 {
   .panel {
     animation: none;
   }
+}
+.panel h2,
+.panel p {
+  text-wrap: balance;
 }
 .panel h2 {
   font-size: 30px;

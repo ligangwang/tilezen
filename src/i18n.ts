@@ -4,11 +4,21 @@
 // rules as the website's translations: exact strings first, then patterns
 // such as "Level {0}", the longest literal text first.
 import zhCN from "./locales/zh-CN.json";
+import es from "./locales/es.json";
+import ptBR from "./locales/pt-BR.json";
+import id from "./locales/id.json";
+import ja from "./locales/ja.json";
+import ko from "./locales/ko.json";
 import type { Locale } from "../sdk/dingn-sdk.js";
 
 /** Each language's pack, by dingn's language code. English needs none. */
 export const PACKS: Record<string, Record<string, string>> = {
   "zh-CN": zhCN,
+  es,
+  "pt-BR": ptBR,
+  id,
+  ja,
+  ko,
 };
 
 /** Every language Tile Zen speaks, English first (game.json `languages`). */

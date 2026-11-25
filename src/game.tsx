@@ -73,8 +73,7 @@ const petals = (theme: Theme) => [theme.back, "#ff9db5", "#ffd76a", "#fff7e0"];
 export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; prefs: Prefs }) {
   const sdk = useDingn();
   const { t, locale } = useLocale();
-  const zh = locale.startsWith("zh");
-  const layoutName = (l: Layout) => (zh ? l.name.zh : l.name.en);
+  const layoutName = (l: Layout) => t(l.name);
   const signedIn = sdk.player.signedIn;
 
   const [saved, setSavedState] = useState(initial);
