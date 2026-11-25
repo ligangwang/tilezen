@@ -1,3 +1,87 @@
 # Tile Zen (静心麻将)
 
-A calm tile-matching solitaire for [dingn](https://dingn.com).
+A calm tile-matching solitaire for [dingn](https://dingn.com): match pairs of
+free tiles to clear the board. Play it at <https://dingn.com/play/tilezen/>.
+
+- **Rules**: tap two tiles with the same face to take them off. A tile can be
+  taken when nothing lies on top of it and its left or right side is open.
+- **Every deal can be cleared.** A board is dealt by playing it with blank
+  tiles and giving each pair taken off the next face, so the deal comes with
+  a way through (`src/engine/board.ts`). Boards up to 72 tiles use each face
+  once, so no move is ever a mistake; bigger boards have sets of four, and
+  the game says the moment a board can no longer be cleared.
+- **Free help**: hints, undo and shuffle are always free and unlimited. A
+  hint is the next step of a plan the game keeps up to date as you play. A
+  shuffle deals the tiles left so the board can be cleared again (stepping
+  back a move or two if no deal of them can, such as two tiles left stacked).
+- **Big, clear tiles**: strong colours on light tiles, a corner number on
+  every numbered tile, blocked tiles shaded, and a **Large tiles** setting
+  for phones and older players (the board scrolls instead of shrinking).
+- **No hurry**: no timer unless the player turns on the clock. Calm,
+  generated music (pentatonic chords and bells, Web Audio) and soft sounds.
+- **Levels**: endless short levels on 14 layouts of our own (Pebble, Stream,
+  Lotus, Stone Bridge, Moon Gate, Lantern, Butterfly, Cloud, Pagoda, Folding
+  Fan, Far Mountains, Twin Peaks, Courtyard, Mountain Temple), from 14 to 120
+  tiles. Each layout debuts on its own level and then opens in **Free play**;
+  every 10th level plays the biggest open layout.
+- **Tile themes**: Classic (dots, sticks, numerals and honours), Garden, Sea
+  and Starry Night, opening at levels 1, 6, 14 and 24.
+- **Daily puzzle**: one board a UTC day, the same for everyone, open to
+  signed-out players too.
+- **Sign in**: levels 1 to 5 are open to everyone; level 6 and on need a free
+  dingn account (dingn's own sign-in).
+- English and Chinese (`src/locales/zh-CN.json`).
+
+## Coins and badges
+
+- A cleared level pays 2 coins plus 1 for every 30 tiles, plus 1 for a
+  **calm clear** (no hint, undo or shuffle), up to 10 (`coinsFor` in
+  `src/levels.ts`), through `sdk.rewards.earn`. dingn passes coins on to the
+  player's kingdom and caps what a game pays each day.
+- The daily puzzle pays 10 coins once a day. Free play pays nothing.
+- 11 badges in `game.json` (levels 5 to 250, calm clears, a 100-tile board,
+  daily puzzles) pay what dingn gives their tier.
+
+## Develop
+
+```sh
+npm install
+npm run dev     # http://localhost:5173/  (?cleared=20&signedin&lang=zh-CN to try later levels)
+npm test        # typecheck, rules tests, component tests
+```
+
+To play it inside dingn while developing, open the
+[playground](https://dingn.com/developers/playground/) and load
+`http://localhost:5173/`.
+
+## What's where
+
+- `src/engine/board.ts`: free tiles, dealing, plans, the solver and reshuffles.
+- `src/engine/session.ts`: one play of a board: moves, undo, hints, shuffles.
+- `src/engine/layouts.ts`: the layouts, drawn as rows of text per layer.
+- `src/levels.ts`: which layout each level plays, the daily puzzle, coins.
+- `src/themes.tsx`: the tile faces, drawn as SVG.
+- `src/board-view.tsx`, `src/game.tsx`: the board, menu, result and settings.
+- `src/save.ts`: what's saved, on the device and to the player's account.
+- `src/sound.ts`: music and sound effects.
+
+## Release a new version
+
+1. In a pull request, raise `version` in `game.json`.
+2. Merge it to `main`. The **Build and publish** Action tests the game,
+   builds `release/tilezen-<version>.zip` and uploads it to dingn with the
+   `DINGN_UPLOAD_KEY` secret.
+3. The new version waits in dingn's review queue and goes live once it is
+   approved.
+
+### The upload key
+
+Create a key on <https://dingn.com/developers/games/> (signed in as the
+account that owns the game), then add it to this repository under
+**Settings → Secrets and variables → Actions** as `DINGN_UPLOAD_KEY`.
+
+## Credits
+
+Written by Ligang Wang. Built with [React](https://react.dev/). Every tile,
+layout and sound is our own, drawn or synthesised in code; the coin picture
+is dingn's. The game ships no third-party assets.

@@ -1,0 +1,574 @@
+// Tile Zen: the menu, the board with its toolbar, the result card, free
+// play, tile themes and settings.
+import { useEffect, useRef, useState } from "react";
+import type { SignInReason } from "../sdk/dingn-sdk.js";
+import { useDingn, useLocale } from "./dingn";
+import { BoardView } from "./board-view";
+import { LAYOUTS, openLayouts, type Layout } from "./engine/layouts";
+import * as S from "./engine/session";
+import { badgesFor, BIG_BOARD } from "./badges";
+import { DAILY_COINS, FREE_LEVELS, coinsFor, dailyLayout, daySeed, layoutFor, levelSeed, today } from "./levels";
+import { store, type Prefs, type Saved } from "./save";
+import { FACE_COUNT, THEMES, faceArt, openThemes, themeById, type Theme } from "./themes";
+import * as sound from "./sound";
+
+type Mode = "level" | "daily" | "free";
+type Run = {
+  mode: Mode;
+  level: number;
+  day: string;
+  layout: Layout;
+  session: S.Session;
+  started: number;
+};
+type Result = {
+  /** Coins dingn paid, null when nothing was asked for (or signed out). */
+  coins: number | null;
+  /** Coins the board was worth. */
+  worth: number;
+  calm: boolean;
+  seconds: number;
+  /** What clearing this level opened: layouts and themes. */
+  opened: string[];
+};
+type Screen = "menu" | "play" | "layouts" | "themes";
+
+export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; prefs: Prefs }) {
+  const sdk = useDingn();
+  const { t, locale } = useLocale();
+  const zh = locale.startsWith("zh");
+  const layoutName = (l: Layout) => (zh ? l.name.zh : l.name.en);
+  const signedIn = sdk.player.signedIn;
+
+  const [saved, setSaved] = useState(initial);
+  const [prefs, setPrefs] = useState(initialPrefs);
+  const [screen, setScreen] = useState<Screen>("menu");
+  const [settings, setSettings] = useState(false);
+  const [run, setRun] = useState<Run | null>(null);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [hint, setHint] = useState<[number, number] | null>(null);
+  const [leaving, setLeaving] = useState<number[]>([]);
+  const [shake, setShake] = useState<number | null>(null);
+  const [note, setNote] = useState("");
+  const [result, setResult] = useState<Result | null>(null);
+  const [now, setNow] = useState(Date.now());
+  const unlocked = useRef(new Set<string>());
+
+  const reached = saved.cleared + 1;
+  const theme = themeById(openThemes(reached).some((th) => th.id === prefs.theme) ? prefs.theme : "classic");
+  const day = today();
+  const dailyDone = saved.daily?.day === day;
+
+  // Settings live on this device.
+  function setPref<K extends keyof Prefs>(key: K, value: Prefs[K]) {
+    const next = { ...prefs, [key]: value };
+    setPrefs(next);
+    void sdk.storage.set("prefs", next).catch(() => {});
+  }
+  useEffect(() => sound.setSound(prefs.sound), [prefs.sound]);
+  // Music starts with the first tap (browsers allow audio only after one).
+  const musicStarted = useRef(false);
+  useEffect(() => {
+    if (musicStarted.current) sound.setMusic(prefs.music);
+  }, [prefs.music]);
+  function tapped() {
+    sound.wake();
+    if (!musicStarted.current) {
+      musicStarted.current = true;
+      if (prefs.music) sound.setMusic(true);
+    }
+  }
+
+  // Hand the saved game over when the player signs in mid-game.
+  useEffect(() => {
+    if (signedIn) void store(sdk, saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedIn]);
+
+  // The clock, only when it's shown.
+  useEffect(() => {
+    if (!prefs.clock || screen !== "play" || result) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [prefs.clock, screen, result]);
+
+  // A note fades after a few seconds.
+  useEffect(() => {
+    if (!note) return;
+    const id = setTimeout(() => setNote(""), 4000);
+    return () => clearTimeout(id);
+  }, [note]);
+
+  function begin(mode: Mode, level: number, layout: Layout, seed: number) {
+    setRun({ mode, level, day, layout, session: S.start(layout.slots, FACE_COUNT, seed), started: Date.now() });
+    setSelected(null);
+    setHint(null);
+    setLeaving([]);
+    setResult(null);
+    setNote("");
+    setScreen("play");
+  }
+  const playLevel = (level: number) => begin("level", level, layoutFor(level), levelSeed(level));
+  const playDaily = () => begin("daily", 0, dailyLayout(day), daySeed(day));
+  const playFree = (layout: Layout) => begin("free", 0, layout, (Date.now() & 0x7fffffff) | 1);
+
+  const locked = run?.mode === "level" && run.level > FREE_LEVELS && !signedIn;
+
+  function update(session: S.Session) {
+    setRun((r) => (r ? { ...r, session } : r));
+  }
+
+  function onTile(i: number) {
+    tapped();
+    if (!run || result) return;
+    const s = run.session;
+    if (!S.free(s, i)) {
+      sound.play("blocked");
+      setShake(i);
+      setTimeout(() => setShake((v) => (v === i ? null : v)), 400);
+      return;
+    }
+    if (selected === null || selected === i) {
+      setSelected(selected === i ? null : i);
+      if (selected !== i) sound.play("select");
+      return;
+    }
+    if (s.faces[selected] !== s.faces[i]) {
+      setSelected(i);
+      sound.play("select");
+      return;
+    }
+    const next = S.take(s, selected, i);
+    if (!next) return;
+    sound.play("match");
+    setLeaving([selected, i]);
+    setTimeout(() => setLeaving([]), 320);
+    setSelected(null);
+    setHint(null);
+    update(next);
+    if (S.cleared(next)) finish(run, next);
+  }
+
+  function onHint() {
+    tapped();
+    if (!run || result) return;
+    const pair = S.hint(run.session);
+    if (!pair) return;
+    sound.play("hint");
+    setHint(pair);
+    setSelected(null);
+    update(S.withHint(run.session));
+  }
+  function onUndo() {
+    tapped();
+    if (!run || result || !run.session.history.length) return;
+    setSelected(null);
+    setHint(null);
+    update(S.undo(run.session));
+  }
+  function onShuffle() {
+    tapped();
+    if (!run || result) return;
+    const { session, rewound } = S.shuffle(run.session);
+    sound.play("shuffle");
+    setSelected(null);
+    setHint(null);
+    update(session);
+    if (rewound) setNote(t("Stepped back {0} moves so the tiles could be shuffled.", String(rewound)));
+  }
+
+  async function finish(r: Run, session: S.Session) {
+    sdk.roundEnded();
+    sound.play("win");
+    const tiles = r.layout.slots.length;
+    const calm = !S.helped(session);
+    const seconds = Math.round((Date.now() - r.started) / 1000);
+    const next: Saved = { ...saved, biggest: Math.max(saved.biggest, tiles) };
+    let worth = 0;
+    const opened: string[] = [];
+    if (r.mode === "level") {
+      worth = coinsFor(tiles, calm);
+      if (calm) next.calm = saved.calm + 1;
+      if (r.level > saved.cleared) {
+        next.cleared = r.level;
+        for (const l of LAYOUTS) if (l.unlock === r.level + 1) opened.push(t("New layout: {0}", layoutName(l)));
+        for (const th of THEMES) if (th.unlock === r.level + 1) opened.push(t("New tile theme: {0}", t(th.name)));
+      }
+    } else if (r.mode === "daily") {
+      const first = saved.daily?.day !== r.day;
+      worth = first ? DAILY_COINS : 0;
+      if (first) next.dailies = saved.dailies + 1;
+      if (calm) next.calm = saved.calm + 1;
+      next.daily = { day: r.day, paid: saved.daily?.day === r.day ? saved.daily.paid : false };
+    } else if (calm) next.calm = saved.calm + 1;
+    setResult({ coins: null, worth, calm, seconds, opened });
+    setSaved(next);
+    if (!signedIn) {
+      void store(sdk, next);
+      return;
+    }
+    // Coins go to the player's dingn account (and on into their kingdom).
+    let paid: number | null = null;
+    if (worth > 0 && !(r.mode === "daily" && next.daily?.paid)) {
+      try {
+        paid = (await sdk.rewards.earn(worth)).coins;
+        if (r.mode === "daily" && next.daily) next.daily = { ...next.daily, paid: true };
+      } catch {}
+    }
+    setResult((res) => (res ? { ...res, coins: paid } : res));
+    setSaved({ ...next });
+    void store(sdk, next);
+    for (const id of badgesFor(next)) {
+      if (unlocked.current.has(id)) continue;
+      unlocked.current.add(id);
+      void sdk.rewards.unlock(id).catch(() => unlocked.current.delete(id));
+    }
+  }
+
+  // All sign-in prompts on a result are dingn's: the game only says when.
+  const signInReasons: SignInReason[] =
+    !signedIn && result && run?.mode !== "free" ? (run?.mode === "level" ? ["rewards", "progress"] : ["rewards"]) : [];
+  const signInKey = signInReasons.join(",");
+  useEffect(() => {
+    if (!signInKey || !sdk.showSignIn) return;
+    sdk.showSignIn(signInKey.split(",") as SignInReason[]);
+    return () => sdk.hideSignIn?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signInKey]);
+
+  const style = {
+    ["--table-a" as string]: theme.table[0],
+    ["--table-b" as string]: theme.table[1],
+  };
+
+  return (
+    <div className={`tz${prefs.large ? " large" : ""}`} style={style} onPointerDown={tapped}>
+      {screen === "menu" && (
+        <Menu
+          reached={reached}
+          saved={saved}
+          dailyDone={dailyDone}
+          onLevel={() => playLevel(reached)}
+          onDaily={playDaily}
+          onLayouts={() => setScreen("layouts")}
+          onThemes={() => setScreen("themes")}
+          onSettings={() => setSettings(true)}
+          theme={theme}
+        />
+      )}
+      {screen === "layouts" && (
+        <Picker title={t("Free play")} sub={t("Play any layout you have opened, as often as you like. Free play pays no coins.")} onBack={() => setScreen("menu")}>
+          {LAYOUTS.map((l) => {
+            const open = l.unlock <= reached;
+            return (
+              <button key={l.id} type="button" className="card" disabled={!open} onClick={() => playFree(l)}>
+                <LayoutThumb layout={l} />
+                <strong>{layoutName(l)}</strong>
+                <span>{open ? t("{0} tiles", String(l.slots.length)) : t("Opens at level {0}", String(l.unlock))}</span>
+              </button>
+            );
+          })}
+        </Picker>
+      )}
+      {screen === "themes" && (
+        <Picker title={t("Tile themes")} sub={t("New themes open as you clear levels.")} onBack={() => setScreen("menu")}>
+          {THEMES.map((th) => {
+            const open = th.unlock <= reached;
+            return (
+              <button
+                key={th.id}
+                type="button"
+                className={`card theme-card${th.id === theme.id ? " chosen" : ""}`}
+                disabled={!open}
+                aria-pressed={th.id === theme.id}
+                onClick={() => setPref("theme", th.id)}
+              >
+                <ThemeSample theme={th} />
+                <strong>{t(th.name)}</strong>
+                <span>{!open ? t("Opens at level {0}", String(th.unlock)) : th.id === theme.id ? t("In use") : t("Use this theme")}</span>
+              </button>
+            );
+          })}
+        </Picker>
+      )}
+      {screen === "play" && run && (
+        <div className="play">
+          <header className="hud">
+            <button type="button" className="hud-button" onClick={() => { setScreen("menu"); setRun(null); }} aria-label={t("Menu")}>
+              ☰ <span className="hud-label">{t("Menu")}</span>
+            </button>
+            <div className="hud-title">
+              <strong>
+                {run.mode === "level" ? t("Level {0}", String(run.level)) : run.mode === "daily" ? t("Daily puzzle") : t("Free play")}
+              </strong>
+              <span>
+                {layoutName(run.layout)} · {t("{0} tiles left", String(S.tilesLeft(run.session)))}
+                {prefs.clock && !locked && ` · ${clock(Math.round(((result ? run.started + result.seconds * 1000 : now) - run.started) / 1000))}`}
+              </span>
+            </div>
+            <button type="button" className="hud-button" onClick={() => setSettings(true)} aria-label={t("Settings")}>
+              ⚙ <span className="hud-label">{t("Settings")}</span>
+            </button>
+          </header>
+          {locked ? (
+            <div className="overlay gate">
+              <div className="panel">
+                <p className="eyebrow">{t("Level {0}", String(run.level))}</p>
+                <h2>{t("Save your progress to keep going")}</h2>
+                <p>
+                  {t(
+                    "You've cleared the first {0} levels. Sign in for free to play level {1} and beyond, and pick up where you left off on any device.",
+                    String(FREE_LEVELS),
+                    String(FREE_LEVELS + 1),
+                  )}
+                </p>
+                <div className="actions">
+                  <button type="button" className="big primary" onClick={() => sdk.requestSignIn()}>
+                    {t("Sign in to keep playing")}
+                  </button>
+                  <button type="button" className="big" onClick={playDaily}>
+                    {t("Play the daily puzzle")}
+                  </button>
+                  <button type="button" className="big" onClick={() => setScreen("layouts")}>
+                    {t("Free play")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <BoardView
+                session={run.session}
+                theme={theme}
+                selected={selected}
+                hint={hint}
+                leaving={leaving}
+                shake={shake}
+                dim={prefs.dim}
+                large={prefs.large}
+                onTile={onTile}
+              />
+              {!result && (run.session.deadEnd || (!S.cleared(run.session) && !S.available(run.session).length)) && (
+                <div className="stuck" role="status">
+                  <strong>{S.available(run.session).length ? t("This board can't be cleared from here.") : t("No more matches.")}</strong>
+                  <span>{t("Shuffle the tiles, free, or undo a move.")}</span>
+                </div>
+              )}
+              {note && (
+                <div className="note" role="status">
+                  {note}
+                </div>
+              )}
+              <footer className="toolbar">
+                <button type="button" className="tool" onClick={onHint} disabled={!!result}>
+                  <span className="tool-icon" aria-hidden="true">💡</span>
+                  {t("Hint")}
+                </button>
+                <button type="button" className="tool" onClick={onUndo} disabled={!!result || !run.session.history.length}>
+                  <span className="tool-icon" aria-hidden="true">↶</span>
+                  {t("Undo")}
+                </button>
+                <button
+                  type="button"
+                  className={`tool${!S.cleared(run.session) && (run.session.deadEnd || !S.available(run.session).length) ? " glow" : ""}`}
+                  onClick={onShuffle}
+                  disabled={!!result}
+                >
+                  <span className="tool-icon" aria-hidden="true">⇄</span>
+                  {t("Shuffle")}
+                </button>
+                {sdk.player.tester && run.mode === "level" && !result && (
+                  <button type="button" className="tool" onClick={() => finish(run, run.session)}>
+                    <span className="tool-icon" aria-hidden="true">⏭</span>
+                    {t("Skip")}
+                  </button>
+                )}
+              </footer>
+            </>
+          )}
+          {result && (
+            <div className="overlay result">
+              <div className="panel">
+                <p className="eyebrow">
+                  {run.mode === "level" ? t("Level {0}", String(run.level)) : run.mode === "daily" ? t("Daily puzzle") : t("Free play")}
+                </p>
+                <h2>{t("Board cleared")}</h2>
+                {result.calm && <p className="calm">{t("A calm clear: no hints, undos or shuffles.")}</p>}
+                <p className="facts">
+                  {t("{0} tiles", String(run.layout.slots.length))} · {clock(result.seconds)}
+                </p>
+                {result.worth > 0 && signedIn && (
+                  <p className="coins">
+                    <img src="./coin.svg" alt="" width="26" height="26" />
+                    {result.coins === null ? t("+{0} coins", String(result.worth)) : t("+{0} coins", String(result.coins))}
+                  </p>
+                )}
+                {run.mode === "daily" && result.worth === 0 && <p>{t("Today's puzzle has already paid its coins. Come back tomorrow for a new one.")}</p>}
+                {result.opened.map((o) => (
+                  <p key={o} className="opened">
+                    ✦ {o}
+                  </p>
+                ))}
+                <div className="actions">
+                  {run.mode === "level" && (
+                    <button type="button" className="big primary" onClick={() => playLevel(run.level + 1)}>
+                      {t("Next level")}
+                    </button>
+                  )}
+                  {run.mode === "free" && (
+                    <button type="button" className="big primary" onClick={() => playFree(run.layout)}>
+                      {t("Play again")}
+                    </button>
+                  )}
+                  <button type="button" className="big" onClick={() => { setScreen("menu"); setRun(null); setResult(null); }}>
+                    {t("Menu")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      {settings && <Settings prefs={prefs} setPref={setPref} onClose={() => setSettings(false)} />}
+    </div>
+  );
+}
+
+const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+
+function Menu(props: {
+  reached: number;
+  saved: Saved;
+  dailyDone: boolean;
+  theme: Theme;
+  onLevel: () => void;
+  onDaily: () => void;
+  onLayouts: () => void;
+  onThemes: () => void;
+  onSettings: () => void;
+}) {
+  const { t } = useLocale();
+  const { reached, saved, dailyDone, theme } = props;
+  return (
+    <div className="menu">
+      <div className="logo" aria-hidden="true">
+        <span className="mini-tile" style={{ background: theme.tile }}>
+          <svg viewBox="0 0 62 84">{faceArt(theme.id, 0)}</svg>
+        </span>
+        <span className="mini-tile" style={{ background: theme.tile }}>
+          <svg viewBox="0 0 62 84">{faceArt(theme.id, 31)}</svg>
+        </span>
+      </div>
+      <h1>{t("Tile Zen")}</h1>
+      <p className="tagline">{t("Match pairs of free tiles and clear the board, at your own pace.")}</p>
+      <div className="menu-buttons">
+        <button type="button" className="big primary" onClick={props.onLevel}>
+          {t("Play level {0}", String(reached))}
+        </button>
+        <button type="button" className="big" onClick={props.onDaily}>
+          {t("Daily puzzle")}
+          {dailyDone && <span className="done"> ✓</span>}
+        </button>
+        <button type="button" className="big" onClick={props.onLayouts}>
+          {t("Free play")}
+        </button>
+        <div className="row">
+          <button type="button" className="big" onClick={props.onThemes}>
+            {t("Tile themes")}
+          </button>
+          <button type="button" className="big" onClick={props.onSettings}>
+            {t("Settings")}
+          </button>
+        </div>
+      </div>
+      <p className="stats">
+        {t("Levels cleared: {0}", String(saved.cleared))} · {t("Layouts open: {0} of {1}", String(openLayouts(reached).length), String(LAYOUTS.length))}
+      </p>
+      <details className="how">
+        <summary>{t("How to play")}</summary>
+        <p>{t("Tap two matching tiles to take them off. A tile can be taken when nothing lies on top of it and its left or right side is open.")}</p>
+        <p>{t("Every board can be cleared. Hints, undo and shuffle are always free, and there is no clock unless you turn it on.")}</p>
+      </details>
+    </div>
+  );
+}
+
+function Picker({ title, sub, onBack, children }: { title: string; sub: string; onBack: () => void; children: React.ReactNode }) {
+  const { t } = useLocale();
+  return (
+    <div className="picker">
+      <header className="picker-head">
+        <button type="button" className="hud-button" onClick={onBack}>
+          ← {t("Back")}
+        </button>
+        <h2>{title}</h2>
+      </header>
+      <p className="picker-sub">{sub}</p>
+      <div className="cards">{children}</div>
+    </div>
+  );
+}
+
+function LayoutThumb({ layout }: { layout: Layout }) {
+  const maxX = Math.max(...layout.slots.map((s) => s.x)) + 2;
+  const maxY = Math.max(...layout.slots.map((s) => s.y)) + 2;
+  return (
+    <svg className="thumb" viewBox={`-1 -1 ${maxX + 2} ${maxY * 1.36 + 2}`} aria-hidden="true">
+      {layout.slots.map((s, i) => (
+        <rect
+          key={i}
+          x={s.x - s.z * 0.25}
+          y={s.y * 1.36 - s.z * 0.25}
+          width="1.85"
+          height="2.55"
+          rx="0.3"
+          fill={["#fffaf0", "#f3e3bf", "#e8cf98", "#ddb978", "#cf9f58"][s.z] ?? "#cf9f58"}
+          stroke="#6b5530"
+          strokeWidth="0.12"
+        />
+      ))}
+    </svg>
+  );
+}
+
+function ThemeSample({ theme }: { theme: Theme }) {
+  return (
+    <span className="sample" style={{ background: `linear-gradient(160deg, ${theme.table[0]}, ${theme.table[1]})` }}>
+      {[4, 13, 22, 30].map((f) => (
+        <span key={f} className="mini-tile" style={{ background: theme.tile }}>
+          <svg viewBox="0 0 62 84">{faceArt(theme.id, f)}</svg>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function Settings({ prefs, setPref, onClose }: { prefs: Prefs; setPref: <K extends keyof Prefs>(k: K, v: Prefs[K]) => void; onClose: () => void }) {
+  const { t } = useLocale();
+  const rows: [keyof Prefs, string, string][] = [
+    ["large", t("Large tiles"), t("Bigger tiles and symbols. Big boards scroll.")],
+    ["dim", t("Shade blocked tiles"), t("Tiles you can't take yet are shaded.")],
+    ["music", t("Calm music"), ""],
+    ["sound", t("Sound effects"), ""],
+    ["clock", t("Show the clock"), t("Off by default: take all the time you like.")],
+  ];
+  return (
+    <div className="overlay" role="dialog" aria-modal="true" aria-label={t("Settings")} onClick={onClose}>
+      <div className="panel settings" onClick={(e) => e.stopPropagation()}>
+        <h2>{t("Settings")}</h2>
+        {rows.map(([key, label, help]) => (
+          <label key={key} className="toggle">
+            <span>
+              <strong>{label}</strong>
+              {help && <small>{help}</small>}
+            </span>
+            <input type="checkbox" checked={prefs[key] as boolean} onChange={(e) => setPref(key, e.target.checked as never)} />
+          </label>
+        ))}
+        <button type="button" className="big primary" onClick={onClose}>
+          {t("Done")}
+        </button>
+      </div>
+    </div>
+  );
+}
