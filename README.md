@@ -23,11 +23,20 @@ in it.
   hint is the next pick of a way through that the game keeps up to date as
   you play, with its twin pointed out. A shuffle puts the tray back and deals
   the tiles left so the board can be cleared again.
+- **Tiles like real ones**: thick two-layer tiles (a pale front on a
+  coloured back) with rounded, polished edges and symbols carved into them
+  (`src/tilezen.css`, the `tz-carve` filter in `src/themes.tsx`). The
+  characters are outlines in `src/glyphs.ts` (from Noto Serif TC, SIL Open
+  Font License), so every device draws them alike. A picked tile flies to
+  the tray, a matched pair pops in a puff of petals, a new board is dealt
+  tile by tile and a cleared one rains petals (`src/fx.ts`); all of it is
+  skipped for players who ask their device for less motion.
 - **Big, clear tiles**: strong colours on polished light tiles, blocked
   tiles shaded, and a **Large tiles** setting
   for phones and older players (the board scrolls instead of shrinking).
 - **No hurry**: no timer unless the player turns on the clock. Calm,
-  generated music (pentatonic chords and bells, Web Audio) and soft sounds.
+  generated music (pentatonic chords and bells, Web Audio) and the sounds
+  of tiles: clacks, a wooden tray, bells on a match. No voices, no audio files.
 - **Levels**: endless short levels on 16 layouts of our own (Pebble, Stream,
   Lotus, Old Well, Stone Bridge, Moon Gate, Drum Tower, Lantern, Butterfly, Cloud, Pagoda, Folding
   Fan, Far Mountains, Twin Peaks, Courtyard, Mountain Temple), from 14 to 120

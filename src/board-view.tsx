@@ -10,7 +10,7 @@ import { useLocale } from "./dingn";
 /** A tile's height over its width. */
 const TALL = 1.36;
 /** How much of a tile's width each layer lifts it up and to the left. */
-const DEPTH = 0.13;
+const DEPTH = 0.18;
 /** Large tiles are at least this wide, in CSS pixels. */
 export const LARGE_MIN = 66;
 
@@ -18,8 +18,6 @@ type Props = {
   session: Session;
   theme: Theme;
   hint: number[] | null;
-  /** Tiles just taken off with their twins from the tray: each lights up and goes. */
-  leaving: number[];
   /** A tile that was tapped while blocked, which wiggles. */
   shake: number | null;
   dim: boolean;
@@ -28,10 +26,16 @@ type Props = {
 };
 
 export function BoardView(props: Props) {
-  const { session, theme, hint, leaving, shake, dim, large, onTile } = props;
+  const { session, theme, hint, shake, dim, large, onTile } = props;
   const { t } = useLocale();
   const box = useRef<HTMLDivElement>(null);
   const [space, setSpace] = useState({ w: 360, h: 480 });
+  // A new board is dealt onto the table, tile after tile.
+  const [dealing, setDealing] = useState(true);
+  useEffect(() => {
+    const id = setTimeout(() => setDealing(false), 1100);
+    return () => clearTimeout(id);
+  }, []);
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
@@ -75,26 +79,24 @@ export function BoardView(props: Props) {
   });
   const order = slots
     .map((s, i) => ({ s, i }))
-    .filter(({ i }) => session.present[i] || leaving.includes(i))
+    .filter(({ i }) => session.present[i])
     .sort((a, b) => a.s.z - b.s.z || a.s.y - b.s.y || a.s.x - b.s.x);
 
   return (
     <div className={`board-box${scrolls ? " scrolls" : ""}`} ref={box}>
       <div
-        className="board"
-        style={{ width: boardW, height: boardH, ["--tile" as string]: theme.tile, ["--edge" as string]: theme.edge }}
+        className={`board${dealing ? " dealing" : ""}`}
+        style={{ width: boardW, height: boardH }}
       >
-        {order.map(({ s, i }) => {
-          const gone = !session.present[i];
-          const open = !gone && isFree(session.g, session.present, i);
+        {order.map(({ s, i }, n) => {
+          const open = isFree(session.g, session.present, i);
           const cls = [
             "tile",
             s.z > 0 ? "raised" : "",
             open ? "free" : "blocked",
-            dim && !open && !gone ? "dim" : "",
+            dim && !open ? "dim" : "",
             hint && hint.includes(i) ? "hinted" : "",
             hint && hint[hint.length - 1] === i ? "pick-next" : "",
-            gone ? "leaving" : "",
             shake === i ? "shake" : "",
           ]
             .filter(Boolean)
@@ -106,16 +108,18 @@ export function BoardView(props: Props) {
               data-tile={i}
               className={cls}
               aria-label={label(session.faces[i]) + (open ? "" : `, ${t("blocked")}`)}
-              disabled={gone}
               onClick={() => onTile(i)}
               style={{
                 ...at(i),
                 width: w,
                 height: h,
-                zIndex: gone ? 200 : s.z * 10 + 1,
+                zIndex: s.z * 10 + 1,
+                ["--n" as string]: n,
                 ["--d" as string]: `${d}px`,
+                ["--r" as string]: `${(w * 0.12).toFixed(1)}px`,
               }}
             >
+              <span className="side" />
               <span className="face">
                 <svg viewBox="0 0 62 84" aria-hidden="true">
                   {faceArt(theme.id, session.faces[i])}
@@ -124,15 +128,6 @@ export function BoardView(props: Props) {
             </button>
           );
         })}
-        {/* A burst of light where each leaving tile was. */}
-        {leaving.map((i) => (
-          <span
-            key={i}
-            className="burst"
-            aria-hidden="true"
-            style={{ left: at(i).left + w / 2, top: at(i).top + h / 2, ["--w" as string]: `${w}px` }}
-          />
-        ))}
       </div>
     </div>
   );
