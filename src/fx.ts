@@ -7,7 +7,7 @@
 export const FLY_MS = 380;
 export const REST_MS = 110;
 /** How long a matched pair takes to rise, meet as one card, and go. */
-export const MELD_MS = 1050;
+export const MELD_MS = 1100;
 /** When in the meld the pair meets: the moment for petals, points and the chime. */
 export const MEET_AT = 0.34;
 
@@ -57,8 +57,9 @@ export function fly(el: HTMLElement, from: DOMRect, fx?: Fx | null) {
 
 /**
  * A matched pair leaves the tray as one: copies of its two tiles rise
- * above it, grow, slide together into a single card that lights up, and
- * fade. The tiles themselves can leave the tray at once. Returns where and
+ * above it and grow, draw back a little, then rush together and collide:
+ * they squash, bounce apart and settle touching, with a flash at the seam
+ * and a ring of light, and the card they make lights up and fades. The tiles themselves can leave the tray at once. Returns where and
  * when (ms from now) they meet, or null when there is no motion to show.
  */
 export function meld(layer: HTMLElement, a: HTMLElement, b: HTMLElement): { x: number; y: number; at: number } | null {
@@ -75,15 +76,27 @@ export function meld(layer: HTMLElement, a: HTMLElement, b: HTMLElement): { x: n
   const glow = document.createElement("div");
   glow.className = "meld-glow";
   card.append(glow);
+  // Where they hit: a flash along the seam, and a ring that spreads from it.
+  const flash = document.createElement("div");
+  flash.className = "meld-flash";
+  const ring = document.createElement("div");
+  ring.className = "meld-ring";
   const tiles = [a, b].map((el, k) => {
     const copy = el.cloneNode(true) as HTMLElement;
     copy.removeAttribute("data-tray");
     copy.removeAttribute("aria-label");
     copy.className = "tray-place held meld-tile";
-    Object.assign(copy.style, { width: `${w}px`, height: `${h}px`, left: `${(k ? rb.left : ra.left) - (mid - w)}px` });
+    Object.assign(copy.style, {
+      width: `${w}px`,
+      height: `${h}px`,
+      left: `${(k ? rb.left : ra.left) - (mid - w)}px`,
+      // Each squashes against the side that takes the hit.
+      transformOrigin: k ? "0% 50%" : "100% 50%",
+    });
     card.append(copy);
     return copy;
   });
+  card.append(flash, ring);
   layer.append(card);
   const rise = -h * 1.35;
   const grow = 1.45;
@@ -92,32 +105,63 @@ export function meld(layer: HTMLElement, a: HTMLElement, b: HTMLElement): { x: n
     [
       { offset: 0, transform: "none", opacity: 1, easing: "cubic-bezier(.2,.8,.3,1)" },
       { offset: 0.24, transform: `translateY(${rise}px) scale(${grow})`, opacity: 1 },
-      { offset: MEET_AT, transform: `translateY(${rise}px) scale(${grow * 1.06})`, opacity: 1, easing: "ease-out" },
-      { offset: 0.44, transform: `translateY(${rise}px) scale(${grow})`, opacity: 1 },
+      // The hit shakes the card they make, and it swells for a moment.
+      { offset: MEET_AT, transform: `translateY(${rise}px) scale(${grow})`, opacity: 1 },
+      { offset: MEET_AT + 0.02, transform: `translate(4px, ${rise - 2}px) scale(${grow * 1.08})`, opacity: 1 },
+      { offset: MEET_AT + 0.05, transform: `translate(-4px, ${rise + 1}px) scale(${grow * 1.05})`, opacity: 1 },
+      { offset: MEET_AT + 0.08, transform: `translate(2px, ${rise}px) scale(${grow * 1.02})`, opacity: 1 },
+      { offset: MEET_AT + 0.11, transform: `translateY(${rise}px) scale(${grow})`, opacity: 1 },
       { offset: 0.8, transform: `translateY(${rise}px) scale(${grow})`, opacity: 1, easing: "ease-in" },
       { offset: 1, transform: `translateY(${rise - 18}px) scale(${grow * 1.12})`, opacity: 0 },
     ],
     opts,
   );
-  // The two close the gap between them and touch.
+  // The two draw back, rush together faster and faster, and hit: each
+  // squashes, bounces back, and comes to rest against the other.
   tiles.forEach((copy, k) => {
     const start = parseFloat(copy.style.left);
     const shift = k * w - start;
+    const toward = k ? -1 : 1;
+    const at = (x: number) => `translateX(${(shift + x * toward).toFixed(1)}px)`;
     copy.animate(
       [
         { offset: 0, transform: "none" },
-        { offset: 0.2, transform: `translateX(${shift * 0.15}px)`, easing: "cubic-bezier(.5,0,.8,.4)" },
-        { offset: MEET_AT, transform: `translateX(${shift}px)` },
-        { offset: 1, transform: `translateX(${shift}px)` },
+        { offset: 0.2, transform: `translateX(${(-toward * w * 0.32).toFixed(1)}px)`, easing: "cubic-bezier(.6,0,1,.5)" },
+        { offset: MEET_AT, transform: `${at(0)} scale(1.02, 0.98)` },
+        { offset: MEET_AT + 0.035, transform: `${at(-w * 0.1)} scale(0.86, 1.06)`, easing: "ease-out" },
+        { offset: MEET_AT + 0.09, transform: `${at(0)} scale(1.03, 0.98)`, easing: "ease-in" },
+        { offset: MEET_AT + 0.13, transform: `${at(-w * 0.025)} scale(0.98, 1.01)` },
+        { offset: MEET_AT + 0.18, transform: at(0) },
+        { offset: 1, transform: at(0) },
       ],
       opts,
     );
   });
+  flash.animate(
+    [
+      { offset: 0, opacity: 0 },
+      { offset: MEET_AT, opacity: 0, transform: "scaleX(0.4)" },
+      { offset: MEET_AT + 0.015, opacity: 1, transform: "scaleX(1.6) scaleY(1.25)" },
+      { offset: MEET_AT + 0.12, opacity: 0, transform: "scaleX(5) scaleY(1.1)" },
+      { offset: 1, opacity: 0 },
+    ],
+    opts,
+  );
+  ring.animate(
+    [
+      { offset: 0, opacity: 0 },
+      { offset: MEET_AT, opacity: 0, transform: "translate(-50%, -50%) scale(0.2)" },
+      { offset: MEET_AT + 0.02, opacity: 1, transform: "translate(-50%, -50%) scale(0.5)", easing: "cubic-bezier(.1,.7,.3,1)" },
+      { offset: MEET_AT + 0.24, opacity: 0, transform: "translate(-50%, -50%) scale(2.4)" },
+      { offset: 1, opacity: 0 },
+    ],
+    opts,
+  );
   glow.animate(
     [
       { offset: 0, opacity: 0 },
       { offset: MEET_AT - 0.04, opacity: 0 },
-      { offset: MEET_AT + 0.04, opacity: 1, transform: "scale(1.08)" },
+      { offset: MEET_AT + 0.06, opacity: 1, transform: "scale(1.08)" },
       { offset: 0.72, opacity: 0.9, transform: "scale(1)" },
       { offset: 1, opacity: 0, transform: "scale(1)" },
     ],
