@@ -74,6 +74,20 @@ function tone(
   osc.stop(when + attack + hold + release + 0.05);
 }
 
+/**
+ * Gets the sounds ready while nothing is happening: the room's echo and
+ * the hiss every knock is made from take a moment to make, which on a
+ * phone was a stutter on the first tile picked. Audio can be set up before
+ * the first tap; it only plays after one.
+ */
+export function prepare() {
+  const c = audio();
+  if (!c || hiss) return;
+  hiss = c.ac.createBuffer(1, c.ac.sampleRate, c.ac.sampleRate);
+  const data = hiss.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+}
+
 /** Browsers start audio only after a tap, so the game calls this on each one. */
 export function wake() {
   if (ctx && ctx.ac.state === "suspended") void ctx.ac.resume();

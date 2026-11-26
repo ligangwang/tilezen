@@ -3,13 +3,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Challenge, ChallengeOutcome, ChallengeStanding, SignInReason } from "../sdk/dingn-sdk.js";
 import { useDingn, useLocale } from "./dingn";
-import { BoardView } from "./board-view";
+import { BoardView, useTilePicture } from "./board-view";
 import { LAYOUTS, openLayouts, type Layout } from "./engine/layouts";
 import * as S from "./engine/session";
 import { badgesFor, BIG_BOARD } from "./badges";
 import { DAILY_COINS, FREE_LEVELS, OPEN_DEPTH, coinsFor, dailyLayout, daySeed, depthFor, layoutFor, levelSeed, today } from "./levels";
 import { loadSaved, merge, store, type Prefs, type Saved } from "./save";
-import { FACE_COUNT, THEMES, drawnTile, faceImage, faceLabel, tileImage, openThemes, themeById, type Theme } from "./themes";
+import { FACE_COUNT, THEMES, drawnTile, faceImage, faceLabel, prepareTiles, tileImage, openThemes, themeById, type Theme } from "./themes";
 import * as sound from "./sound";
 import { Icon } from "./icons";
 import { FLY_MS, MELD_MS, REST_MS, createFx, fly, meld, slide, type Fx } from "./fx";
@@ -154,6 +154,19 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     void sdk.storage.set("prefs", next).catch(() => {});
   }
   useEffect(() => sound.setSound(prefs.sound), [prefs.sound]);
+  // Make the tiles' bitmaps ahead of play, for the theme in use.
+  useEffect(() => prepareTiles(theme, FACE_COUNT), [theme]);
+  // Make the sounds ready in a quiet moment, not on the first tile picked.
+  useEffect(() => {
+    if (!prefs.sound) return;
+    const idle = (globalThis as { requestIdleCallback?: (f: () => void) => number }).requestIdleCallback;
+    const id = idle ? idle(() => sound.prepare()) : setTimeout(() => sound.prepare(), 600);
+    return () => {
+      const cancel = (globalThis as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback;
+      if (idle && cancel) cancel(id as number);
+      else clearTimeout(id as ReturnType<typeof setTimeout>);
+    };
+  }, [prefs.sound]);
   function tapped(e?: React.PointerEvent) {
     sound.wake();
     // Every button answers with a tick; a tile has its own sound.
@@ -293,7 +306,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
       // Drawn on the effects canvas from the board tile's own picture
       // where there is one; otherwise copies of the tiles (fx.ts meld).
       const fx = effects();
-      const picture = drawnTile(tileImage(theme, s.faces[twin], false)) ?? drawnTile(tileImage(theme, s.faces[twin], true));
+      const picture = drawnTile(tileImage(theme, s.faces[twin]));
       const colors = [theme.tile, theme.tile, theme.edge];
       const met =
         a && b && fx && picture
@@ -590,7 +603,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                   {note}
                 </div>
               )}
-              <Tray session={run.session} theme={theme} hint={hint} leaving={trayLeaving} />
+              <Tray session={run.session} theme={theme} hint={hint} leaving={trayLeaving} large={prefs.large} />
               <footer className="toolbar">
                 <button type="button" className="tool" onClick={onHint} disabled={done}>
                   <span className="tool-icon"><Icon name="hint" size={26} /></span>
@@ -920,25 +933,22 @@ function Tray({
   theme,
   hint,
   leaving,
+  large,
 }: {
   session: S.Session;
   theme: Theme;
   hint: number[] | null;
   leaving: Leaving[];
+  large: boolean;
 }) {
   const { t } = useLocale();
   const label = (face: number) => {
     const [name, n] = faceLabel(theme.id, face);
     return n ? t(name, n) : t(name);
   };
-  const face = (f: number) => (
-    <>
-      <span className="side" />
-      <span className="face">
-        <img className="art" src={faceImage(theme.id, f)} alt="" draggable={false} />
-      </span>
-    </>
-  );
+  // The board tile's own picture, already drawn, so a tile reaching the
+  // tray costs the phone nothing new to draw.
+  const face = (f: number) => <TrayTile theme={theme} face={f} large={large} />;
   // The places in order: the tiles waiting, with each matched tile still
   // in the place it had until its pair has gone.
   const places: ({ id: number; gone?: Leaving })[] = session.tray.map((id) => ({ id }));
@@ -970,5 +980,17 @@ function Tray({
         </li>
       ))}
     </ul>
+  );
+}
+
+/** A tile in the tray: the board's picture of it, with a ring for a hint. */
+function TrayTile({ theme, face, large }: { theme: Theme; face: number; large: boolean }) {
+  const w = large ? 60 : 50;
+  const { src, pw, ph } = useTilePicture(theme, face, w, w * 1.36);
+  return (
+    <>
+      <img className="pic" src={src} alt="" draggable={false} style={{ width: pw, height: ph }} />
+      <span className="ring" />
+    </>
   );
 }

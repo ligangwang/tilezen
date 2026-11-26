@@ -127,11 +127,9 @@ h2 {
 /* Every tile, on the board, in the tray or only for show, is built the same
    way: a shadow, a side in two layers (the pale front on its coloured
    back), and the face. --d is how thick it looks, --r how round. */
-.tray-place.held,
 .mini-tile {
   --k: calc(var(--r) * 0.586);
 }
-.tray-place.held::before,
 .mini-tile::before {
   content: "";
   position: absolute;
@@ -455,9 +453,11 @@ h2 {
   background: none;
   transition: transform 0.12s ease;
 }
-/* A board tile is one picture (its shadow, side, face and drawing), which
-   runs past the tile to the right and below for the shadow. */
-.tile .pic {
+/* A board or tray tile is one picture (its shadow, side, face and
+   drawing), which runs past the tile to the right and below for the
+   shadow. */
+.tile .pic,
+.tray-place .pic {
   position: absolute;
   left: 0;
   top: 0;
@@ -467,7 +467,8 @@ h2 {
   -webkit-user-drag: none;
 }
 /* Over the face, lit only for a hint. */
-.tile .ring {
+.tile .ring,
+.tray-place .ring {
   position: absolute;
   inset: 0 var(--d) var(--d) 0;
   border-radius: var(--r);
@@ -476,14 +477,14 @@ h2 {
 /* A hint: the tile to pick glows; its twin wears a quieter ring, even when
    it is covered. */
 .tile.hinted .ring,
-.tray-place.hinted .face {
+.tray-place.hinted .ring {
   border-color: #b97a00;
   box-shadow:
     0 0 0 3px #ffbf2e,
     0 0 0 5px rgba(255, 255, 255, 0.9);
 }
 .tile.pick-next .ring,
-.tray-place.hinted .face {
+.tray-place.hinted .ring {
   animation: glow 1s ease-in-out infinite alternate;
 }
 @keyframes glow {

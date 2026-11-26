@@ -57,8 +57,18 @@ export function fly(el: HTMLElement, from: DOMRect, fx?: Fx | null) {
   flight.onfinish = flight.oncancel = () => {
     el.style.zIndex = "";
   };
-  // A faint trail of light behind it.
-  fx?.follow(el, FLY_MS * LAND, FLY_MS * LIFT);
+  // A faint trail of light behind it, along the same path, worked out
+  // here rather than measured from the page on every frame.
+  const cx = to.left + to.width / 2;
+  const cy = to.top + to.height / 2;
+  fx?.follow(
+    (t) => {
+      const e = ease(t);
+      return [cx + dx * (1 - e), cy + (dy - 10) * (1 - e), to.width, to.height];
+    },
+    FLY_MS * (LAND - LIFT),
+    FLY_MS * LIFT,
+  );
 }
 
 /**
@@ -330,8 +340,11 @@ export type Fx = {
    * page. Returns where (window px) and when (ms from now) they hit.
    */
   smash(job: Smash): { x: number; y: number; at: number };
-  /** A faint trail of sparks behind `el` while it moves, for `ms` after `delay`. */
-  follow(el: HTMLElement, ms: number, delay?: number): void;
+  /**
+   * A faint trail of sparks along `path` (0-1 to a window point and the
+   * mover's size), for `ms` after `delay`.
+   */
+  follow(path: (t: number) => [number, number, number, number], ms: number, delay?: number): void;
   /** Petals drifting down the whole board, for a board cleared. */
   rain(colors: string[]): void;
   clear(): void;
@@ -626,20 +639,19 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
         );
       }, delay);
     },
-    follow(el, ms, delay = 0) {
-      const box = () => canvas.getBoundingClientRect();
+    follow(path, ms, delay = 0) {
+      const b = canvas.getBoundingClientRect();
       const end = performance.now() + delay + ms;
       const start = performance.now() + delay;
       const step = (now: number) => {
-        if (now > end || !el.isConnected) return;
+        if (now > end) return;
         if (now >= start) {
-          const r = el.getBoundingClientRect();
-          const b = box();
+          const [x, y, w, h] = path((now - start) / ms);
           const more: Bit[] = [];
           for (let k = 0; k < 2; k++)
             more.push({
-              x: r.left + r.width / 2 - b.left + rand(-r.width * 0.3, r.width * 0.3),
-              y: r.top + r.height / 2 - b.top + rand(-r.height * 0.3, r.height * 0.3),
+              x: x - b.left + rand(-w * 0.3, w * 0.3),
+              y: y - b.top + rand(-h * 0.3, h * 0.3),
               vx: rand(-30, 30),
               vy: rand(-40, 10),
               turn: rand(0, 6),
