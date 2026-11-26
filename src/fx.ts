@@ -22,10 +22,16 @@ const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2
  */
 export function fly(el: HTMLElement, from: DOMRect, fx?: Fx | null) {
   const to = el.getBoundingClientRect();
-  if (typeof el.animate !== "function" || !to.width || calm()) return;
+  if (typeof el.animate !== "function" || !to.width) return;
   const dx = from.left + from.width / 2 - (to.left + to.width / 2);
   const dy = from.top + from.height / 2 - (to.top + to.height / 2);
   const scale = from.width / to.width;
+  // A player who asked for less motion still sees where the tile went: a
+  // short, plain glide, with no lift, settle or trail.
+  if (calm()) {
+    el.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${scale})` }, { transform: "none" }], { duration: 160, easing: "ease-out" });
+    return;
+  }
   const LIFT = 0.16;
   const LAND = 0.84;
   const frames: Keyframe[] = [];
@@ -63,8 +69,23 @@ export function fly(el: HTMLElement, from: DOMRect, fx?: Fx | null) {
  * themselves can leave the tray at once. Returns where and when (ms from
  * now) they hit, or null when there is no motion to show.
  */
-export function meld(layer: HTMLElement, a: HTMLElement, b: HTMLElement): { x: number; y: number; at: number } | null {
-  if (typeof layer.animate !== "function" || calm()) return null;
+export function meld(layer: HTMLElement, a: HTMLElement, b: HTMLElement, fx?: Fx | null): { x: number; y: number; at: number } | null {
+  if (typeof layer.animate !== "function") return null;
+  if (calm()) {
+    // Less motion: the pair simply fades where it was.
+    for (const el of [a, b]) {
+      const copy = el.cloneNode(true) as HTMLElement;
+      const r = el.getBoundingClientRect();
+      const box = layer.getBoundingClientRect();
+      copy.removeAttribute("data-tray");
+      copy.className = "tray-place held meld-tile";
+      Object.assign(copy.style, { position: "absolute", left: `${r.left - box.left}px`, top: `${r.top - box.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+      layer.append(copy);
+      copy.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 250, fill: "forwards" });
+      setTimeout(() => copy.remove(), 300);
+    }
+    return null;
+  }
   const box = layer.getBoundingClientRect();
   const [ra, rb] = [a.getBoundingClientRect(), b.getBoundingClientRect()];
   if (!ra.width) return null;
@@ -82,6 +103,14 @@ export function meld(layer: HTMLElement, a: HTMLElement, b: HTMLElement): { x: n
     Object.assign(copy.style, { width: `${w}px`, height: `${h}px` });
     return copy;
   };
+  // The tile's colours, for the chips drawn on the canvas.
+  const style = getComputedStyle(a);
+  const chipColors = [style.getPropertyValue("--tile").trim() || "#fffcf4", style.getPropertyValue("--edge").trim() || "#e6d8b8"];
+  const back = style.getPropertyValue("--back").trim() || "#1f9d76";
+  const chips: Chip[] = [];
+  // Where a point of the card (in px, before it rose) is in the window at the hit.
+  const cy = ra.top + h / 2;
+  const toWindow = (x: number, y: number): [number, number] => [mid + (x - w) * 1.4, cy + -h * 1.35 + (y - h / 2) * 1.4];
   const tiles = [a, b].map((el, k) => {
     const copy = copyOf(el);
     Object.assign(copy.style, {
@@ -143,24 +172,55 @@ export function meld(layer: HTMLElement, a: HTMLElement, b: HTMLElement): { x: n
     // Many points around the outline, unevenly spaced, so the pieces are
     // many, small and jagged.
     const rim: [number, number][] = [[side(100), 0]];
-    for (const x of [84, 70, 57, 44, 31, 18, 7]) rim.push([side(x + j() / 2), 0]);
+    const steps = (from: number, to: number, n: number) => Array.from({ length: n }, (_, i) => from + ((to - from) * (i + 1)) / (n + 1));
+    for (const x of steps(100, 0, 11)) rim.push([side(x + j() / 3), 0]);
     rim.push([side(0), 0]);
-    for (const y of [12, 25, 38, 50, 62, 75, 88]) rim.push([side(0), y + j() / 2]);
+    for (const y of steps(0, 100, 13)) rim.push([side(0), y + j() / 3]);
     rim.push([side(0), 100]);
-    for (const x of [8, 20, 33, 46, 59, 72, 86]) rim.push([side(x + j() / 2), 100]);
+    for (const x of steps(0, 100, 11)) rim.push([side(x + j() / 3), 100]);
     rim.push([side(100), 100]);
-    // Each wedge from the point of the hit breaks once more across, near
-    // and far, so there are shards of every size.
+    // Each wedge from the point of the hit breaks across three times, so
+    // there are shards of every size, the smallest at the outer edge.
     const pieces: [number, number][][] = [];
     for (let n = 0; n < rim.length - 1; n++) {
       const q = rim[n];
       const r = rim[n + 1];
-      const f = 0.35 + Math.random() * 0.3;
-      const near = (u: [number, number]): [number, number] => [p[0] + (u[0] - p[0]) * f, p[1] + (u[1] - p[1]) * f];
-      pieces.push([p, near(q), near(r)], [near(q), q, r, near(r)]);
+      const f1 = 0.22 + Math.random() * 0.12;
+      const f2 = 0.5 + Math.random() * 0.12;
+      const f3 = 0.75 + Math.random() * 0.1;
+      const at = (u: [number, number], f: number): [number, number] => [p[0] + (u[0] - p[0]) * f, p[1] + (u[1] - p[1]) * f];
+      pieces.push(
+        [p, at(q, f1), at(r, f1)],
+        [at(q, f1), at(q, f2), at(r, f2), at(r, f1)],
+        [at(q, f2), at(q, f3), at(r, f3), at(r, f2)],
+        [at(q, f3), q, r, at(r, f3)],
+      );
     }
-    for (const piece of pieces) {
-      const [q, r] = [piece[1], piece[2]];
+    for (const [index, piece] of pieces.entries()) {
+      const mx = piece.reduce((t, u) => t + u[0], 0) / piece.length;
+      const my = piece.reduce((t, u) => t + u[1], 0) / piece.length;
+      const cx = mx - p[0];
+      const cy = my - p[1];
+      const len = Math.hypot(cx, cy) || 1;
+      // A few pieces nearest the hit carry the drawing and
+      // move as copies of the tile; all the rest are chips drawn on the
+      // canvas, which is far cheaper.
+      if (index % 12 !== 0) {
+        const pts = piece.map(([x, y]) => toWindow(k * w + (x / 100) * w, (y / 100) * h));
+        const ox = pts.reduce((t, u) => t + u[0], 0) / pts.length;
+        const oy = pts.reduce((t, u) => t + u[1], 0) / pts.length;
+        const speed = w * 1.4 * (2.4 + Math.random() * 2.6 + (len / 100) * 2.2);
+        chips.push({
+          x: ox,
+          y: oy,
+          pts: pts.map(([x, y]) => [x - ox, y - oy]),
+          vx: (cx / len) * speed,
+          vy: (cy / len) * speed * 0.8 - 140,
+          spin: (Math.random() - 0.5) * 14,
+          color: Math.random() < 0.12 ? back : chipColors[index % 4 < 2 ? 0 : Math.round(Math.random())],
+        });
+        continue;
+      }
       const shard = copyOf(el);
       shard.classList.add("meld-shard");
       shard.style.left = `${k * w}px`;
@@ -168,17 +228,10 @@ export function meld(layer: HTMLElement, a: HTMLElement, b: HTMLElement): { x: n
       card.append(shard);
       // Away from the hit, through the shard's middle, then falling; the
       // pieces from the outer edge fly furthest.
-      const mx = piece.reduce((t, u) => t + u[0], 0) / piece.length;
-      const my = piece.reduce((t, u) => t + u[1], 0) / piece.length;
-      const cx = mx - p[0];
-      const cy = my - p[1];
-      const len = Math.hypot(cx, cy) || 1;
-      const far = w * (0.35 + Math.random() * 0.55 + (len / 100) * 0.5);
-      void q;
-      void r;
+      const far = w * (0.3 + Math.random() * 0.6 + (len / 100) * 0.6);
       const dx = (cx / len) * far;
       const dy = (cy / len) * far * 0.8;
-      const spin = (Math.random() - 0.5) * 260;
+      const spin = (Math.random() - 0.5) * 360;
       shard.style.transformOrigin = `${mx.toFixed(1)}% ${my.toFixed(1)}%`;
       shard.animate(
         [
@@ -193,6 +246,7 @@ export function meld(layer: HTMLElement, a: HTMLElement, b: HTMLElement): { x: n
       );
     }
   }
+  fx?.shards(chips, MELD_MS * hit);
   card.append(...light);
   const [blast, flash, ring] = light;
   blast.animate(
@@ -250,6 +304,9 @@ export function slide(el: HTMLElement, dx: number) {
   el.animate([{ transform: `translateX(${dx}px)` }, { transform: "none" }], { duration: 200, easing: "ease-out" });
 }
 
+/** A chip of a broken tile, for the canvas: its outline around its middle (window px). */
+export type Chip = { x: number; y: number; pts: [number, number][]; vx: number; vy: number; spin: number; color: string };
+
 type Bit = {
   x: number;
   y: number;
@@ -263,12 +320,16 @@ type Bit = {
   color: string;
   /** A petal, which falls and flutters, or a spark, which flies and fades. */
   petal: boolean;
+  /** A chip of tile instead: its outline. */
+  pts?: [number, number][];
 };
 
 export type Fx = {
   canvas: HTMLCanvasElement;
   /** Petals and sparks thrown out from a point (in window coordinates); `blast` throws more, faster. */
   burst(x: number, y: number, colors: string[], blast?: boolean): void;
+  /** Chips of a broken tile flying apart and falling, after `delay` ms. */
+  shards(chips: Chip[], delay: number): void;
   /** A faint trail of sparks behind `el` while it moves, for `ms` after `delay`. */
   follow(el: HTMLElement, ms: number, delay?: number): void;
   /** Petals drifting down the whole board, for a board cleared. */
@@ -303,9 +364,10 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
     for (const b of bits) {
       if (b.age < 0) continue;
       const left = 1 - b.age / b.life;
-      b.vy += (b.petal ? 520 : 160) * dt;
-      // Air slows a spark quickly; a petal reaches a slow fall and sways.
-      const drag = b.petal ? 2.2 : 3.2;
+      b.vy += (b.pts ? 1300 : b.petal ? 520 : 160) * dt;
+      // Air slows a spark quickly; a petal reaches a slow fall and sways; a
+      // chip is heavy and falls.
+      const drag = b.pts ? 1.6 : b.petal ? 2.2 : 3.2;
       b.vx -= b.vx * drag * dt;
       b.vy -= b.vy * drag * dt;
       b.x += (b.vx + (b.petal ? Math.sin(b.age * 5 + b.turn) * 26 : 0)) * dt;
@@ -314,9 +376,14 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
       pen!.save();
       pen!.translate(b.x, b.y);
       pen!.rotate(b.turn);
-      pen!.globalAlpha = Math.min(1, left * (b.petal ? 2.5 : 1.6));
+      pen!.globalAlpha = Math.min(1, left * (b.petal || b.pts ? 2.5 : 1.6));
       pen!.fillStyle = b.color;
-      if (b.petal) {
+      if (b.pts) {
+        pen!.beginPath();
+        for (const [x, y] of b.pts) pen!.lineTo(x, y);
+        pen!.closePath();
+        pen!.fill();
+      } else if (b.petal) {
         // A petal, seen turning over as it falls.
         pen!.scale(1, 0.35 + 0.65 * Math.abs(Math.cos(b.age * 4 + b.spin)));
         pen!.beginPath();
@@ -327,8 +394,11 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
       } else {
         // A four-pointed spark with a soft light around it.
         const r = b.size * (0.5 + 0.5 * left);
-        pen!.shadowColor = b.color;
-        pen!.shadowBlur = 8;
+        // A soft light around it, while there are few enough to afford it.
+        if (bits.length < 80) {
+          pen!.shadowColor = b.color;
+          pen!.shadowBlur = 8;
+        }
         pen!.beginPath();
         for (let k = 0; k < 8; k++) {
           const d = k % 2 ? r * 0.32 : r;
@@ -354,7 +424,7 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
     burst(x, y, colors, blast = false) {
       const box = canvas.getBoundingClientRect();
       const more: Bit[] = [];
-      for (let k = 0; k < (blast ? 110 : 36); k++) {
+      for (let k = 0; k < (blast ? 90 : 36); k++) {
         const petal = blast ? k % 3 === 0 : k % 2 === 0;
         const angle = rand(0, Math.PI * 2);
         const speed = petal ? rand(160, 420) * (blast ? 1.4 : 1) : rand(220, 620) * (blast ? 1.8 : 1);
@@ -375,6 +445,27 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
         });
       }
       add(more);
+    },
+    shards(chips, delay) {
+      setTimeout(() => {
+        const b = canvas.getBoundingClientRect();
+        add(
+          chips.map((c) => ({
+            x: c.x - b.left,
+            y: c.y - b.top,
+            vx: c.vx,
+            vy: c.vy,
+            turn: 0,
+            spin: c.spin,
+            size: 0,
+            age: 0,
+            life: rand(0.8, 1.2),
+            color: c.color,
+            petal: false,
+            pts: c.pts,
+          })),
+        );
+      }, delay);
     },
     follow(el, ms, delay = 0) {
       const box = () => canvas.getBoundingClientRect();
