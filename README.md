@@ -9,6 +9,9 @@ reaches a twin that is buried. Four different tiles waiting fill the tray,
 and the board is failed: the player tries it again, or takes the last tile
 back.
 
+- **Nothing marks a blocked tile**: every tile looks the same, and seeing
+  which can be picked is the player's part. A blocked tile that is tapped
+  only shakes. (Screen readers are still told.)
 - **Rules**: tap a tile to lift it into the tray, then tap its twin and both
   leave. A tile can be picked when nothing lies on top of it and its left or
   right side is open.
@@ -34,9 +37,8 @@ back.
   pops in a puff of petals, a new board is dealt
   tile by tile and a cleared one rains petals (`src/fx.ts`); all of it is
   skipped for players who ask their device for less motion.
-- **Big, clear tiles**: strong colours on polished light tiles, blocked
-  tiles shaded, and a **Large tiles** setting
-  for phones and older players (the board scrolls instead of shrinking).
+- **Big, clear tiles**: strong colours on polished light tiles, and a
+  **Large tiles** setting for phones and older players (the board scrolls instead of shrinking).
 - **No hurry**: no timer unless the player turns on the clock. The only
   sounds are the tiles', made with Web Audio: clacks, a wooden tray, bells on
   a match. No background music, no voices, no audio files.

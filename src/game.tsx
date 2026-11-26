@@ -561,7 +561,6 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                 theme={theme}
                 hint={hint}
                 shake={shake}
-                dim={prefs.dim}
                 large={prefs.large}
                 onTile={onTile}
               />
@@ -881,7 +880,6 @@ function Settings({ prefs, setPref, onClose }: { prefs: Prefs; setPref: <K exten
   const { t } = useLocale();
   const rows: [keyof Prefs, string, string][] = [
     ["large", t("Large tiles"), t("Bigger tiles and symbols. Big boards scroll.")],
-    ["dim", t("Shade blocked tiles"), t("Tiles you can't take yet are shaded.")],
     ["sound", t("Sound effects"), ""],
     ["clock", t("Show the clock"), t("Off by default: take all the time you like.")],
   ];

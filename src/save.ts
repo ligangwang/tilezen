@@ -84,8 +84,6 @@ export type Prefs = {
   sound: boolean;
   /** Bigger tiles: the board can scroll instead of shrinking to fit. */
   large: boolean;
-  /** Fade tiles that can't be picked yet. */
-  dim: boolean;
   /** Show how long the board has taken. Off: no clock, no hurry. */
   clock: boolean;
   theme: string;
@@ -93,14 +91,13 @@ export type Prefs = {
 export const DEFAULT_PREFS: Prefs = {
   sound: true,
   large: false,
-  dim: true,
   clock: false,
   theme: "classic",
 };
 export function parsePrefs(value: Json): Prefs {
   const p = { ...DEFAULT_PREFS };
   if (!isObject(value)) return p;
-  for (const key of ["sound", "large", "dim", "clock"] as const)
+  for (const key of ["sound", "large", "clock"] as const)
     if (typeof value[key] === "boolean") p[key] = value[key] as boolean;
   if (typeof value.theme === "string") p.theme = value.theme;
   return p;

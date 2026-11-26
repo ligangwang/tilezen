@@ -20,13 +20,12 @@ type Props = {
   hint: number[] | null;
   /** A tile that was tapped while blocked, which wiggles. */
   shake: number | null;
-  dim: boolean;
   large: boolean;
   onTile: (i: number) => void;
 };
 
 export function BoardView(props: Props) {
-  const { session, theme, hint, shake, dim, large, onTile } = props;
+  const { session, theme, hint, shake, large, onTile } = props;
   const { t } = useLocale();
   const box = useRef<HTMLDivElement>(null);
   const [space, setSpace] = useState({ w: 360, h: 480 });
@@ -94,7 +93,6 @@ export function BoardView(props: Props) {
             "tile",
             s.z > 0 ? "raised" : "",
             open ? "free" : "blocked",
-            dim && !open ? "dim" : "",
             hint && hint.includes(i) ? "hinted" : "",
             hint && hint[hint.length - 1] === i ? "pick-next" : "",
             shake === i ? "shake" : "",
