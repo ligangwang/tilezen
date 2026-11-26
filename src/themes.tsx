@@ -1,7 +1,7 @@
 // Tile faces. Every theme has 36 faces: four suits of nine. They are drawn
 // here as SVG, our own designs, in strong colours on a light tile so they
 // stay easy to tell apart, large or small.
-import type { ReactNode } from "react";
+import { Fragment, isValidElement, type ReactNode } from "react";
 import { GLYPHS } from "./glyphs";
 
 export const FACE_COUNT = 36;
@@ -276,6 +276,144 @@ function picture(theme: Exclude<ThemeId, "classic">, suit: number, n: number) {
 }
 
 /** The drawing on one tile, in a 62 × 84 box. */
+// ---- Tiles as pictures ----
+// A phone redraws a tile drawn in the page (a vector drawing with a filter,
+// soft shadows, cut shapes) every time anything near it changes, and that
+// is what made the board stutter. So each tile is drawn once into a picture
+// (an SVG image the browser renders once and keeps), and the board shows
+// those pictures.
+
+const CARVE = `<filter id="c" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB"><feOffset in="SourceAlpha" dx="0.7" dy="0.9" result="l"/><feFlood flood-color="#fff"/><feComposite in2="l" operator="in" result="lip"/><feOffset in="SourceAlpha" dx="1" dy="1.3"/><feGaussianBlur stdDeviation="0.55" result="lit"/><feComposite in="SourceAlpha" in2="lit" operator="out" result="s"/><feFlood flood-color="#000" flood-opacity="0.5"/><feComposite in2="s" operator="in" result="shade"/><feMerge><feMergeNode in="lip"/><feMergeNode in="SourceGraphic"/><feMergeNode in="shade"/></feMerge></filter>`;
+
+const KEEP_CASE = new Set(["viewBox", "stdDeviation"]);
+const escapeXml = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+/** A drawing (made of plain SVG elements) as SVG markup. */
+function markup(node: ReactNode): string {
+  if (node === null || node === undefined || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return escapeXml(String(node));
+  if (Array.isArray(node)) return node.map(markup).join("");
+  if (!isValidElement(node)) return "";
+  const { children, ...props } = node.props as Record<string, unknown> & { children?: ReactNode };
+  if (node.type === Fragment) return markup(children);
+  if (typeof node.type !== "string") return "";
+  const attrs = Object.entries(props)
+    .filter(([, v]) => v !== undefined && v !== null && v !== false)
+    .map(([k, v]) => ` ${KEEP_CASE.has(k) ? k : k.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase())}="${escapeXml(String(v))}"`)
+    .join("");
+  return `<${node.type}${attrs}>${markup(children)}</${node.type}>`;
+}
+const url = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+
+/** One colour mixed toward another, `p` of the way (0-1). */
+function mix(a: string, b: string, p: number) {
+  const rgb = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [x, y] = [rgb(a), rgb(b)];
+  return `#${x.map((v, i) => Math.round(v + (y[i] - v) * p).toString(16).padStart(2, "0")).join("")}`;
+}
+
+const pictures = new Map<string, string>();
+
+/** A face's drawing alone, carved, as a picture to show over a tile drawn in the page. */
+export function faceImage(theme: ThemeId, face: number): string {
+  const key = `art:${theme}:${face}`;
+  let pic = pictures.get(key);
+  if (!pic) {
+    pic = url(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 62 84"><defs>${CARVE}</defs><g filter="url(#c)">${markup(art(theme, face))}</g></svg>`);
+    pictures.set(key, pic);
+  }
+  return pic;
+}
+
+/**
+ * A whole board tile as one picture: its shadow, its two-layer side and
+ * its polished face with the drawing. In units where the tile is 100 wide
+ * and 136 tall, with the face 84 x 120 and the side 16 deep, as the board
+ * lays tiles out (board-view.tsx); the picture runs past the tile to the
+ * right and below, for the shadow (TILE_PICTURE).
+ */
+export function tileImage(theme: Theme, face: number, raised: boolean): string {
+  const key = `tile:${theme.id}:${face}:${raised ? 1 : 0}`;
+  let pic = pictures.get(key);
+  if (pic) return pic;
+  const FW = 84;
+  const FH = 120;
+  const D = 16;
+  const R = 11;
+  const rect = (x: number, y: number, fill: string, extra = "") => `<rect x="${x}" y="${y}" width="${FW}" height="${FH}" rx="${R}" fill="${fill}"${extra}/>`;
+  // The side, as the face swept down and right: the coloured back, then
+  // the pale front. Its lower face is in more shade than its right one;
+  // the two meet on the slant through the corner, the same line for every
+  // layer, so one split colouring serves them all.
+  const split = (id: string, low: string, right: string) =>
+    `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${FW - 60}" y1="${FH + 60}" x2="${FW + 60}" y2="${FH - 60}"><stop offset="0.5" stop-color="${low}"/><stop offset="0.5" stop-color="${right}"/></linearGradient>`;
+  const layers: string[] = [];
+  for (let t = D; t > D * 0.5; t -= 1) layers.push(rect(t, t, "url(#b)"));
+  for (let t = D * 0.5; t > 0; t -= 0.75) layers.push(rect(t, t, "url(#e)"));
+  const shadow = raised ? { dx: 5, dy: 8, blur: 5, alpha: 0.5 } : { dx: 4, dy: 6, blur: 4, alpha: 0.4 };
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TILE_PICTURE.w} ${TILE_PICTURE.h}"><defs>${CARVE}
+<filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="${shadow.blur}"/></filter>
+${split("b", mix(theme.back, "#000000", 0.32), mix(theme.back, "#000000", 0.06))}
+${split("e", mix(theme.edge, "#6b4f22", 0.24), theme.edge)}
+<linearGradient id="f" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="0.38" stop-color="${theme.tile}"/><stop offset="1" stop-color="${mix(theme.tile, theme.edge, 0.55)}"/></linearGradient>
+<radialGradient id="g" cx="0.18" cy="0.06" r="0.75"><stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<linearGradient id="k" x1="0" y1="0" x2="1" y2="1"><stop offset="0.45" stop-color="#7a5c28" stop-opacity="0"/><stop offset="1" stop-color="#7a5c28" stop-opacity="0.45"/></linearGradient>
+</defs>
+<rect x="${D + shadow.dx * 0.4}" y="${D + shadow.dy * 0.4}" width="${FW}" height="${FH}" rx="${R}" fill="#000" opacity="${shadow.alpha * 0.6}" filter="url(#s)"/>
+<rect x="${D + shadow.dx}" y="${D + shadow.dy}" width="${FW}" height="${FH}" rx="${R}" fill="#000" opacity="${shadow.alpha * 0.5}" filter="url(#s)"/>
+${layers.join("")}
+${rect(0, 0, "url(#f)")}${rect(0, 0, "url(#g)")}
+<rect x="1.1" y="1.1" width="${FW - 2.2}" height="${FH - 2.2}" rx="${R - 1}" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="1.6"/>
+<rect x="1.4" y="1.4" width="${FW - 2.8}" height="${FH - 2.8}" rx="${R - 1}" fill="none" stroke="url(#k)" stroke-width="2.4"/>
+${rect(0, 0, "none", ` stroke="#54401a" stroke-opacity="0.45" stroke-width="0.9"`)}
+<g transform="translate(0 ${((FH - 84 * (FW / 62)) / 2).toFixed(2)}) scale(${(FW / 62).toFixed(4)})"><g filter="url(#c)">${markup(art(theme.id, face))}</g></g>
+</svg>`;
+  pic = url(svg);
+  pictures.set(key, pic);
+  return pic;
+}
+/**
+ * A picture as a bitmap at `width` x `height` device pixels, made once and
+ * kept: a browser redraws a vector picture each time the page around it is
+ * redrawn, but only copies a bitmap. Resolves to the vector picture itself
+ * where a bitmap can't be made.
+ */
+export function bitmap(svg: string, width: number, height: number): Promise<string> {
+  const key = `${Math.round(width)}x${Math.round(height)}:${svg}`;
+  let made = bitmaps.get(key);
+  if (!made) {
+    made = new Promise<string>((resolve) => {
+      if (typeof Image === "undefined" || typeof document === "undefined") return resolve(svg);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(width));
+          canvas.height = Math.max(1, Math.round(height));
+          canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob((blob) => resolve(blob ? URL.createObjectURL(blob) : svg), "image/png");
+        } catch {
+          resolve(svg);
+        }
+      };
+      img.onerror = () => resolve(svg);
+      img.src = svg;
+    });
+    bitmaps.set(key, made);
+  }
+  return made;
+}
+const bitmaps = new Map<string, Promise<string>>();
+
+/** How big a tile's picture is, in the units where the tile is 100 x 136. */
+export const TILE_PICTURE = { w: 112, h: 150 };
+
+/** The drawing on one tile, in a 62 × 84 box, uncarved. */
+function art(theme: ThemeId, face: number): ReactNode {
+  const suit = Math.floor(face / 9);
+  const n = (face % 9) + 1;
+  return theme === "classic" ? [dots, sticks, numeral, honour][suit](n) : picture(theme, suit, n);
+}
+
 export function faceArt(theme: ThemeId, face: number): ReactNode {
   // Drawn once and kept: handing React the very same drawing again lets it
   // skip the tile's whole picture when the board changes.

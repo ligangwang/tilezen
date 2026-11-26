@@ -127,12 +127,10 @@ h2 {
 /* Every tile, on the board, in the tray or only for show, is built the same
    way: a shadow, a side in two layers (the pale front on its coloured
    back), and the face. --d is how thick it looks, --r how round. */
-.tile,
 .tray-place.held,
 .mini-tile {
   --k: calc(var(--r) * 0.586);
 }
-.tile::before,
 .tray-place.held::before,
 .mini-tile::before {
   content: "";
@@ -199,11 +197,12 @@ h2 {
   display: block;
   overflow: hidden;
 }
-.face svg {
+.face .art {
   position: relative;
   width: 100%;
   height: 100%;
   display: block;
+  object-fit: contain;
 }
 .mini-tile {
   --d: 4px;
@@ -456,22 +455,34 @@ h2 {
   background: none;
   transition: transform 0.12s ease;
 }
-/* A tile on a higher layer casts a deeper shadow, so stacks read clearly. */
-.tile.raised::before {
-  box-shadow:
-    1px 2px 3px rgba(0, 0, 0, 0.42),
-    4px 7px 12px rgba(0, 0, 0, 0.4);
+/* A board tile is one picture (its shadow, side, face and drawing), which
+   runs past the tile to the right and below for the shadow. */
+.tile .pic {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+/* Over the face, lit only for a hint. */
+.tile .ring {
+  position: absolute;
+  inset: 0 var(--d) var(--d) 0;
+  border-radius: var(--r);
+  pointer-events: none;
 }
 /* A hint: the tile to pick glows; its twin wears a quieter ring, even when
    it is covered. */
-.tile.hinted .face,
+.tile.hinted .ring,
 .tray-place.hinted .face {
   border-color: #b97a00;
   box-shadow:
     0 0 0 3px #ffbf2e,
     0 0 0 5px rgba(255, 255, 255, 0.9);
 }
-.tile.pick-next .face,
+.tile.pick-next .ring,
 .tray-place.hinted .face {
   animation: glow 1s ease-in-out infinite alternate;
 }
@@ -584,7 +595,7 @@ h2 {
 }
 @media (prefers-reduced-motion: reduce) {
   .tile,
-  .tile.hinted .face,
+  .tile.hinted .ring,
   .tile.shake,
   .big,
   .hud-button {

@@ -9,7 +9,7 @@ import * as S from "./engine/session";
 import { badgesFor, BIG_BOARD } from "./badges";
 import { DAILY_COINS, FREE_LEVELS, OPEN_DEPTH, coinsFor, dailyLayout, daySeed, depthFor, layoutFor, levelSeed, today } from "./levels";
 import { loadSaved, merge, store, type Prefs, type Saved } from "./save";
-import { FACE_COUNT, THEMES, TileDefs, faceArt, faceLabel, openThemes, themeById, type Theme } from "./themes";
+import { FACE_COUNT, THEMES, faceImage, faceLabel, openThemes, themeById, type Theme } from "./themes";
 import * as sound from "./sound";
 import { Icon } from "./icons";
 import { FLY_MS, MELD_MS, REST_MS, createFx, fly, meld, slide, type Fx } from "./fx";
@@ -441,7 +441,6 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
 
   return (
     <div className={`tz${prefs.large ? " large" : ""}`} style={style} onPointerDown={tapped}>
-      <TileDefs />
       {screen === "menu" && (
         <Menu
           reached={reached}
@@ -749,7 +748,7 @@ function MiniTile({ theme, face }: { theme: Theme; face: number }) {
     <span className="mini-tile">
       <span className="side" />
       <span className="face">
-        <svg viewBox="0 0 62 84">{faceArt(theme.id, face)}</svg>
+        <img className="art" src={faceImage(theme.id, face)} alt="" draggable={false} />
       </span>
     </span>
   );
@@ -926,9 +925,7 @@ function Tray({
     <>
       <span className="side" />
       <span className="face">
-        <svg viewBox="0 0 62 84" aria-hidden="true">
-          {faceArt(theme.id, f)}
-        </svg>
+        <img className="art" src={faceImage(theme.id, f)} alt="" draggable={false} />
       </span>
     </>
   );

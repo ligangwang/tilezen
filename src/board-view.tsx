@@ -4,7 +4,7 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import type { Session } from "./engine/session";
 import { isFree } from "./engine/board";
-import { faceArt, faceLabel, type Theme } from "./themes";
+import { TILE_PICTURE, bitmap, faceLabel, tileImage, type Theme } from "./themes";
 import { useLocale } from "./dingn";
 
 /** A tile's height over its width. */
@@ -111,7 +111,7 @@ export function BoardView(props: Props) {
               i={i}
               cls={cls}
               label={label(session.faces[i]) + (open ? "" : `, ${t("blocked")}`)}
-              theme={theme.id}
+              theme={theme}
               face={session.faces[i]}
               left={left}
               top={top}
@@ -119,6 +119,7 @@ export function BoardView(props: Props) {
               h={h}
               d={d}
               z={s.z}
+              raised={s.z > 0}
               n={n}
               onTile={tap}
             />
@@ -133,7 +134,7 @@ type TileProps = {
   i: number;
   cls: string;
   label: string;
-  theme: Theme["id"];
+  theme: Theme;
   face: number;
   left: number;
   top: number;
@@ -141,12 +142,13 @@ type TileProps = {
   h: number;
   d: number;
   z: number;
+  raised: boolean;
   n: number;
   onTile: (i: number) => void;
 };
 
 /** One tile on the board, drawn again only when something about it changes. */
-const Tile = memo(function Tile({ i, cls, label, theme, face, left, top, w, h, d, z, n, onTile }: TileProps) {
+const Tile = memo(function Tile({ i, cls, label, theme, face, left, top, w, h, d, z, raised, n, onTile }: TileProps) {
   const style: CSSProperties & Record<string, string | number> = {
     left,
     top,
@@ -157,14 +159,26 @@ const Tile = memo(function Tile({ i, cls, label, theme, face, left, top, w, h, d
     "--d": `${d}px`,
     "--r": `${(w * 0.12).toFixed(1)}px`,
   };
+  const pw = (w * TILE_PICTURE.w) / 100;
+  const ph = (h * TILE_PICTURE.h) / 136;
+  const svg = tileImage(theme, face, raised);
+  // The vector picture first, swapped for its bitmap as soon as that's made.
+  const [pic, setPic] = useState<{ svg: string; src: string }>({ svg, src: svg });
+  useEffect(() => {
+    let live = true;
+    const ratio = Math.min(3, window.devicePixelRatio || 1);
+    void bitmap(svg, pw * ratio, ph * ratio).then((src) => live && setPic({ svg, src }));
+    return () => {
+      live = false;
+    };
+  }, [svg, pw, ph]);
+  const src = pic.svg === svg ? pic.src : svg;
   return (
     <button type="button" data-tile={i} className={cls} aria-label={label} onClick={() => onTile(i)} style={style}>
-      <span className="side" />
-      <span className="face">
-        <svg viewBox="0 0 62 84" aria-hidden="true">
-          {faceArt(theme, face)}
-        </svg>
-      </span>
+      {/* The whole tile is one picture (themes.tsx), which phones show
+          without redrawing; the ring above it only lights for a hint. */}
+      <img className="pic" src={src} alt="" draggable={false} style={{ width: pw, height: ph }} />
+      <span className="ring" />
     </button>
   );
 });
