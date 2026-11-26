@@ -140,36 +140,53 @@ export function meld(layer: HTMLElement, a: HTMLElement, b: HTMLElement): { x: n
     const j = () => (Math.random() - 0.5) * 14;
     // The point of the hit, on the tile's inner edge, and its outline around it.
     const p: [number, number] = [side(94), 50 + j() / 2];
-    const rim: [number, number][] = [
-      [side(100), 0], [side(62 + j()), 0], [side(24 + j()), 0], [side(0), 0],
-      [side(0), 36 + j()], [side(0), 68 + j()], [side(0), 100],
-      [side(30 + j()), 100], [side(68 + j()), 100], [side(100), 100],
-    ];
-    for (let n = 0; n < rim.length; n++) {
+    // Many points around the outline, unevenly spaced, so the pieces are
+    // many, small and jagged.
+    const rim: [number, number][] = [[side(100), 0]];
+    for (const x of [84, 70, 57, 44, 31, 18, 7]) rim.push([side(x + j() / 2), 0]);
+    rim.push([side(0), 0]);
+    for (const y of [12, 25, 38, 50, 62, 75, 88]) rim.push([side(0), y + j() / 2]);
+    rim.push([side(0), 100]);
+    for (const x of [8, 20, 33, 46, 59, 72, 86]) rim.push([side(x + j() / 2), 100]);
+    rim.push([side(100), 100]);
+    // Each wedge from the point of the hit breaks once more across, near
+    // and far, so there are shards of every size.
+    const pieces: [number, number][][] = [];
+    for (let n = 0; n < rim.length - 1; n++) {
       const q = rim[n];
-      const r = rim[(n + 1) % rim.length];
-      if (q[0] === r[0] && q[0] === side(100)) continue;
+      const r = rim[n + 1];
+      const f = 0.35 + Math.random() * 0.3;
+      const near = (u: [number, number]): [number, number] => [p[0] + (u[0] - p[0]) * f, p[1] + (u[1] - p[1]) * f];
+      pieces.push([p, near(q), near(r)], [near(q), q, r, near(r)]);
+    }
+    for (const piece of pieces) {
+      const [q, r] = [piece[1], piece[2]];
       const shard = copyOf(el);
       shard.classList.add("meld-shard");
       shard.style.left = `${k * w}px`;
-      shard.style.clipPath = `polygon(${p[0]}% ${p[1]}%, ${q[0]}% ${q[1]}%, ${r[0]}% ${r[1]}%)`;
+      shard.style.clipPath = `polygon(${piece.map(([x, y]) => `${x.toFixed(1)}% ${y.toFixed(1)}%`).join(", ")})`;
       card.append(shard);
-      // Away from the hit, through the shard's middle, then falling.
-      const cx = (p[0] + q[0] + r[0]) / 3 - p[0];
-      const cy = (p[1] + q[1] + r[1]) / 3 - p[1];
+      // Away from the hit, through the shard's middle, then falling; the
+      // pieces from the outer edge fly furthest.
+      const mx = piece.reduce((t, u) => t + u[0], 0) / piece.length;
+      const my = piece.reduce((t, u) => t + u[1], 0) / piece.length;
+      const cx = mx - p[0];
+      const cy = my - p[1];
       const len = Math.hypot(cx, cy) || 1;
-      const far = w * (0.9 + Math.random() * 0.9);
+      const far = w * (0.35 + Math.random() * 0.55 + (len / 100) * 0.5);
+      void q;
+      void r;
       const dx = (cx / len) * far;
       const dy = (cy / len) * far * 0.8;
-      const spin = (Math.random() - 0.5) * 140;
-      shard.style.transformOrigin = `${(p[0] + q[0] + r[0]) / 3}% ${(p[1] + q[1] + r[1]) / 3}%`;
+      const spin = (Math.random() - 0.5) * 260;
+      shard.style.transformOrigin = `${mx.toFixed(1)}% ${my.toFixed(1)}%`;
       shard.animate(
         [
           { offset: 0, opacity: 0, transform: "none" },
           { offset: hit - 0.001, opacity: 0, transform: "none" },
           { offset: hit, opacity: 1, transform: "none", easing: "cubic-bezier(.1,.8,.4,1)" },
           { offset: hit + 0.25, opacity: 1, transform: `translate(${(dx * 0.75).toFixed(1)}px, ${(dy * 0.75).toFixed(1)}px) rotate(${(spin * 0.6).toFixed(0)}deg) scale(0.95)`, easing: "ease-in" },
-          { offset: 0.92, opacity: 0, transform: `translate(${dx.toFixed(1)}px, ${(dy + h * 0.9).toFixed(1)}px) rotate(${spin.toFixed(0)}deg) scale(0.8)` },
+          { offset: 0.92, opacity: 0, transform: `translate(${dx.toFixed(1)}px, ${(dy + h * 1.2).toFixed(1)}px) rotate(${spin.toFixed(0)}deg) scale(0.8)` },
           { offset: 1, opacity: 0, transform: `translate(${dx.toFixed(1)}px, ${(dy + h * 0.9).toFixed(1)}px)` },
         ],
         opts,
@@ -337,7 +354,7 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
     burst(x, y, colors, blast = false) {
       const box = canvas.getBoundingClientRect();
       const more: Bit[] = [];
-      for (let k = 0; k < (blast ? 70 : 36); k++) {
+      for (let k = 0; k < (blast ? 110 : 36); k++) {
         const petal = blast ? k % 3 === 0 : k % 2 === 0;
         const angle = rand(0, Math.PI * 2);
         const speed = petal ? rand(160, 420) * (blast ? 1.4 : 1) : rand(220, 620) * (blast ? 1.8 : 1);
@@ -352,7 +369,8 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
           age: 0,
           life: petal ? rand(0.9, 1.5) : rand(0.4, 0.75),
           // Sparks are light; petals take the theme's colours.
-          color: petal ? pick(colors) : pick(["#fff7d6", "#ffd76a", "#ffffff"]),
+          // In a blast, chips of the tiles fly with the sparks.
+          color: petal ? pick(colors) : pick(blast ? ["#fff7d6", "#ffd76a", "#ffffff", "#f3e6c8", "#f3e6c8"] : ["#fff7d6", "#ffd76a", "#ffffff"]),
           petal,
         });
       }
