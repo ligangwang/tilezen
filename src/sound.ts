@@ -187,10 +187,14 @@ export function play(sfx: Sfx, step = 0) {
       knock(c.sfx, t, 130, 0.11, 0.2);
       break;
     case "match": {
-      // The pair knock together, ring, and scatter.
+      // The pair hit each other hard and burst: a crack, a low boom, the
+      // pieces scattering, then the bells.
       const d = 5 + Math.min(step, 7);
-      clack(c.sfx, t, 1, 0.9);
-      clack(c.sfx, t + 0.035, 1.12, 0.6);
+      clack(c.sfx, t, 0.92, 1.3);
+      noise(c.sfx, t, { freq: 3000, q: 0.8, decay: 0.06, gain: 0.45 });
+      knock(c.sfx, t, 90, 0.3, 0.38);
+      noise(c.sfx, t + 0.005, { freq: 500, q: 0.4, attack: 0.004, decay: 0.32, gain: 0.3, sweep: 0.4 });
+      rattle(c.sfx, t + 0.05, 7, 0.35, 0.28);
       bell(c.sfx, note(d), t + 0.02, 0.15);
       bell(c.sfx, note(d + 2), t + 0.11, 0.12, 1.6);
       glitter(c.sfx, t + 0.08, 5, 0.35, 0.035);

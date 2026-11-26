@@ -12,7 +12,7 @@ import { loadSaved, merge, store, type Prefs, type Saved } from "./save";
 import { FACE_COUNT, THEMES, TileDefs, faceArt, faceLabel, openThemes, themeById, type Theme } from "./themes";
 import * as sound from "./sound";
 import { Icon } from "./icons";
-import { FLY_MS, MELD_MS, REST_MS, createFx, fly, meld, slide, type Fx } from "./fx";
+import { FLY_MS, MELD_MS, REST_MS, createFx, fly, jolt, meld, slide, type Fx } from "./fx";
 
 type Mode = "level" | "daily" | "free";
 type Run = {
@@ -290,7 +290,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     setTimeout(() => {
       if (current.current !== started) return;
       const [a, b] = [twin, i].map((id) => playEl.current?.querySelector<HTMLElement>(`[data-tray="${id}"]`));
-      const met = a && b && playEl.current ? meld(playEl.current.querySelector<HTMLElement>(".melds")!, a, b) : null;
+      const met = a && b && playEl.current ? meld(playEl.current.querySelector<HTMLElement>(".melds")!, a, b, effects()) : null;
       setTrayLeaving((l) => l.filter((x) => !pair.includes(x)));
       const box = playEl.current?.getBoundingClientRect();
       setTimeout(() => {
@@ -298,7 +298,8 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
         setPending((p) => p - gain);
         sound.play("match", s.streak);
         if (met && box) {
-          effects()?.burst(met.x, met.y, petals(theme));
+          effects()?.burst(met.x, met.y, petals(theme), true);
+          jolt(playEl.current?.querySelector<HTMLElement>(".board"));
           float(`+${gain}`, false, met.x - box.left, met.y - box.top - 40);
         }
       }, met?.at ?? 0);

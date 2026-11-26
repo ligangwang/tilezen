@@ -34,8 +34,9 @@ back.
   characters are outlines in `src/glyphs.ts` (from Noto Serif TC, SIL Open
   Font License), so every device draws them alike. A picked tile is lifted
   and carried straight to the tray with a faint trail, and set down there; a
-  matched pair then rises out of the tray, slides together into one glowing
-  card and goes in a puff of petals, a new board is dealt
+  matched pair then rises out of the tray, draws back and collides, and
+  bursts into shards with a flash, a shock ring and sparks while the table
+  jolts, a new board is dealt
   tile by tile and a cleared one rains petals (`src/fx.ts`); all of it is
   skipped for players who ask their device for less motion.
 - **Big, clear tiles**: strong colours on polished light tiles, and a
