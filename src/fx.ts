@@ -7,9 +7,9 @@
 export const FLY_MS = 380;
 export const REST_MS = 110;
 /** How long a matched pair takes to rise, meet as one card, and go. */
-export const MELD_MS = 1100;
+export const MELD_MS = 1000;
 /** When in the meld the pair meets: the moment for petals, points and the chime. */
-export const MEET_AT = 0.34;
+export const MEET_AT = 0.36;
 
 const calm = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -56,11 +56,12 @@ export function fly(el: HTMLElement, from: DOMRect, fx?: Fx | null) {
 }
 
 /**
- * A matched pair leaves the tray as one: copies of its two tiles rise
- * above it and grow, draw back a little, then rush together and collide:
- * they squash, bounce apart and settle touching, with a flash at the seam
- * and a ring of light, and the card they make lights up and fades. The tiles themselves can leave the tray at once. Returns where and
- * when (ms from now) they meet, or null when there is no motion to show.
+ * A matched pair leaves the tray with a bang: copies of its two tiles rise
+ * above it and grow, draw back, then rush together and collide, and at the
+ * hit they burst: each breaks into shards that fly apart and fall, while a
+ * flash of light, a shock ring and sparks go off where they met. The tiles
+ * themselves can leave the tray at once. Returns where and when (ms from
+ * now) they hit, or null when there is no motion to show.
  */
 export function meld(layer: HTMLElement, a: HTMLElement, b: HTMLElement): { x: number; y: number; at: number } | null {
   if (typeof layer.animate !== "function" || calm()) return null;
@@ -73,76 +74,126 @@ export function meld(layer: HTMLElement, a: HTMLElement, b: HTMLElement): { x: n
   const card = document.createElement("div");
   card.className = "meld";
   Object.assign(card.style, { left: `${mid - w - box.left}px`, top: `${ra.top - box.top}px`, width: `${2 * w}px`, height: `${h}px` });
-  const glow = document.createElement("div");
-  glow.className = "meld-glow";
-  card.append(glow);
-  // Where they hit: a flash along the seam, and a ring that spreads from it.
-  const flash = document.createElement("div");
-  flash.className = "meld-flash";
-  const ring = document.createElement("div");
-  ring.className = "meld-ring";
-  const tiles = [a, b].map((el, k) => {
+  const copyOf = (el: HTMLElement) => {
     const copy = el.cloneNode(true) as HTMLElement;
     copy.removeAttribute("data-tray");
     copy.removeAttribute("aria-label");
     copy.className = "tray-place held meld-tile";
+    Object.assign(copy.style, { width: `${w}px`, height: `${h}px` });
+    return copy;
+  };
+  const tiles = [a, b].map((el, k) => {
+    const copy = copyOf(el);
     Object.assign(copy.style, {
-      width: `${w}px`,
-      height: `${h}px`,
       left: `${(k ? rb.left : ra.left) - (mid - w)}px`,
-      // Each squashes against the side that takes the hit.
       transformOrigin: k ? "0% 50%" : "100% 50%",
     });
     card.append(copy);
     return copy;
   });
-  card.append(flash, ring);
+  // The light of the hit: a burst, a flash along the seam, a shock ring.
+  const light = ["meld-blast", "meld-flash", "meld-ring"].map((name) => {
+    const el = document.createElement("div");
+    el.className = name;
+    return el;
+  });
   layer.append(card);
   const rise = -h * 1.35;
-  const grow = 1.45;
+  const grow = 1.4;
   const opts = { duration: MELD_MS, fill: "forwards" as const };
+  const hit = MEET_AT;
   card.animate(
     [
-      { offset: 0, transform: "none", opacity: 1, easing: "cubic-bezier(.2,.8,.3,1)" },
-      { offset: 0.24, transform: `translateY(${rise}px) scale(${grow})`, opacity: 1 },
-      // The hit shakes the card they make, and it swells for a moment.
-      { offset: MEET_AT, transform: `translateY(${rise}px) scale(${grow})`, opacity: 1 },
-      { offset: MEET_AT + 0.02, transform: `translate(4px, ${rise - 2}px) scale(${grow * 1.08})`, opacity: 1 },
-      { offset: MEET_AT + 0.05, transform: `translate(-4px, ${rise + 1}px) scale(${grow * 1.05})`, opacity: 1 },
-      { offset: MEET_AT + 0.08, transform: `translate(2px, ${rise}px) scale(${grow * 1.02})`, opacity: 1 },
-      { offset: MEET_AT + 0.11, transform: `translateY(${rise}px) scale(${grow})`, opacity: 1 },
-      { offset: 0.8, transform: `translateY(${rise}px) scale(${grow})`, opacity: 1, easing: "ease-in" },
-      { offset: 1, transform: `translateY(${rise - 18}px) scale(${grow * 1.12})`, opacity: 0 },
+      { offset: 0, transform: "none", easing: "cubic-bezier(.2,.8,.3,1)" },
+      { offset: 0.24, transform: `translateY(${rise}px) scale(${grow})` },
+      // The hit jolts the air where they met.
+      { offset: hit, transform: `translateY(${rise}px) scale(${grow})` },
+      { offset: hit + 0.02, transform: `translate(6px, ${rise - 3}px) scale(${grow})` },
+      { offset: hit + 0.05, transform: `translate(-5px, ${rise + 2}px) scale(${grow})` },
+      { offset: hit + 0.08, transform: `translate(3px, ${rise}px) scale(${grow})` },
+      { offset: hit + 0.11, transform: `translateY(${rise}px) scale(${grow})` },
+      { offset: 1, transform: `translateY(${rise}px) scale(${grow})` },
     ],
     opts,
   );
-  // The two draw back, rush together faster and faster, and hit: each
-  // squashes, bounces back, and comes to rest against the other.
+  // The two draw back, then rush together faster and faster; at the hit
+  // they squash for an instant and are gone, into shards.
   tiles.forEach((copy, k) => {
     const start = parseFloat(copy.style.left);
     const shift = k * w - start;
     const toward = k ? -1 : 1;
-    const at = (x: number) => `translateX(${(shift + x * toward).toFixed(1)}px)`;
     copy.animate(
       [
-        { offset: 0, transform: "none" },
-        { offset: 0.2, transform: `translateX(${(-toward * w * 0.32).toFixed(1)}px)`, easing: "cubic-bezier(.6,0,1,.5)" },
-        { offset: MEET_AT, transform: `${at(0)} scale(1.02, 0.98)` },
-        { offset: MEET_AT + 0.035, transform: `${at(-w * 0.1)} scale(0.86, 1.06)`, easing: "ease-out" },
-        { offset: MEET_AT + 0.09, transform: `${at(0)} scale(1.03, 0.98)`, easing: "ease-in" },
-        { offset: MEET_AT + 0.13, transform: `${at(-w * 0.025)} scale(0.98, 1.01)` },
-        { offset: MEET_AT + 0.18, transform: at(0) },
-        { offset: 1, transform: at(0) },
+        { offset: 0, transform: "none", opacity: 1 },
+        { offset: 0.2, transform: `translateX(${(-toward * w * 0.32).toFixed(1)}px)`, opacity: 1, easing: "cubic-bezier(.6,0,1,.5)" },
+        { offset: hit - 0.01, transform: `translateX(${shift}px) scale(0.9, 1.05)`, opacity: 1 },
+        { offset: hit, transform: `translateX(${shift}px) scale(0.9, 1.05)`, opacity: 0 },
+        { offset: 1, transform: `translateX(${shift}px)`, opacity: 0 },
       ],
       opts,
     );
   });
+  // Each tile breaks into pieces that fan out from the point of the hit.
+  for (const k of [0, 1]) {
+    const el = k ? b : a;
+    const side = (x: number) => (k ? 100 - x : x);
+    const j = () => (Math.random() - 0.5) * 14;
+    // The point of the hit, on the tile's inner edge, and its outline around it.
+    const p: [number, number] = [side(94), 50 + j() / 2];
+    const rim: [number, number][] = [
+      [side(100), 0], [side(62 + j()), 0], [side(24 + j()), 0], [side(0), 0],
+      [side(0), 36 + j()], [side(0), 68 + j()], [side(0), 100],
+      [side(30 + j()), 100], [side(68 + j()), 100], [side(100), 100],
+    ];
+    for (let n = 0; n < rim.length; n++) {
+      const q = rim[n];
+      const r = rim[(n + 1) % rim.length];
+      if (q[0] === r[0] && q[0] === side(100)) continue;
+      const shard = copyOf(el);
+      shard.classList.add("meld-shard");
+      shard.style.left = `${k * w}px`;
+      shard.style.clipPath = `polygon(${p[0]}% ${p[1]}%, ${q[0]}% ${q[1]}%, ${r[0]}% ${r[1]}%)`;
+      card.append(shard);
+      // Away from the hit, through the shard's middle, then falling.
+      const cx = (p[0] + q[0] + r[0]) / 3 - p[0];
+      const cy = (p[1] + q[1] + r[1]) / 3 - p[1];
+      const len = Math.hypot(cx, cy) || 1;
+      const far = w * (0.9 + Math.random() * 0.9);
+      const dx = (cx / len) * far;
+      const dy = (cy / len) * far * 0.8;
+      const spin = (Math.random() - 0.5) * 140;
+      shard.style.transformOrigin = `${(p[0] + q[0] + r[0]) / 3}% ${(p[1] + q[1] + r[1]) / 3}%`;
+      shard.animate(
+        [
+          { offset: 0, opacity: 0, transform: "none" },
+          { offset: hit - 0.001, opacity: 0, transform: "none" },
+          { offset: hit, opacity: 1, transform: "none", easing: "cubic-bezier(.1,.8,.4,1)" },
+          { offset: hit + 0.25, opacity: 1, transform: `translate(${(dx * 0.75).toFixed(1)}px, ${(dy * 0.75).toFixed(1)}px) rotate(${(spin * 0.6).toFixed(0)}deg) scale(0.95)`, easing: "ease-in" },
+          { offset: 0.92, opacity: 0, transform: `translate(${dx.toFixed(1)}px, ${(dy + h * 0.9).toFixed(1)}px) rotate(${spin.toFixed(0)}deg) scale(0.8)` },
+          { offset: 1, opacity: 0, transform: `translate(${dx.toFixed(1)}px, ${(dy + h * 0.9).toFixed(1)}px)` },
+        ],
+        opts,
+      );
+    }
+  }
+  card.append(...light);
+  const [blast, flash, ring] = light;
+  blast.animate(
+    [
+      { offset: 0, opacity: 0, transform: "translate(-50%, -50%) scale(0.1)" },
+      { offset: hit - 0.001, opacity: 0, transform: "translate(-50%, -50%) scale(0.1)" },
+      { offset: hit + 0.02, opacity: 1, transform: "translate(-50%, -50%) scale(0.9)", easing: "ease-out" },
+      { offset: hit + 0.2, opacity: 0, transform: "translate(-50%, -50%) scale(2)" },
+      { offset: 1, opacity: 0, transform: "translate(-50%, -50%) scale(2)" },
+    ],
+    opts,
+  );
   flash.animate(
     [
       { offset: 0, opacity: 0 },
-      { offset: MEET_AT, opacity: 0, transform: "scaleX(0.4)" },
-      { offset: MEET_AT + 0.015, opacity: 1, transform: "scaleX(1.6) scaleY(1.25)" },
-      { offset: MEET_AT + 0.12, opacity: 0, transform: "scaleX(5) scaleY(1.1)" },
+      { offset: hit - 0.001, opacity: 0, transform: "scaleX(0.4)" },
+      { offset: hit + 0.01, opacity: 1, transform: "scaleX(2) scaleY(1.4)" },
+      { offset: hit + 0.1, opacity: 0, transform: "scaleX(7) scaleY(1.1)" },
       { offset: 1, opacity: 0 },
     ],
     opts,
@@ -150,25 +201,30 @@ export function meld(layer: HTMLElement, a: HTMLElement, b: HTMLElement): { x: n
   ring.animate(
     [
       { offset: 0, opacity: 0 },
-      { offset: MEET_AT, opacity: 0, transform: "translate(-50%, -50%) scale(0.2)" },
-      { offset: MEET_AT + 0.02, opacity: 1, transform: "translate(-50%, -50%) scale(0.5)", easing: "cubic-bezier(.1,.7,.3,1)" },
-      { offset: MEET_AT + 0.24, opacity: 0, transform: "translate(-50%, -50%) scale(2.4)" },
+      { offset: hit - 0.001, opacity: 0, transform: "translate(-50%, -50%) scale(0.2)" },
+      { offset: hit + 0.015, opacity: 1, transform: "translate(-50%, -50%) scale(0.5)", easing: "cubic-bezier(.1,.7,.3,1)" },
+      { offset: hit + 0.28, opacity: 0, transform: "translate(-50%, -50%) scale(3.2)" },
       { offset: 1, opacity: 0 },
     ],
     opts,
   );
-  glow.animate(
-    [
-      { offset: 0, opacity: 0 },
-      { offset: MEET_AT - 0.04, opacity: 0 },
-      { offset: MEET_AT + 0.06, opacity: 1, transform: "scale(1.08)" },
-      { offset: 0.72, opacity: 0.9, transform: "scale(1)" },
-      { offset: 1, opacity: 0, transform: "scale(1)" },
-    ],
-    opts,
-  );
   setTimeout(() => card.remove(), MELD_MS + 50);
-  return { x: mid, y: ra.top + h / 2 + rise, at: MELD_MS * MEET_AT };
+  return { x: mid, y: ra.top + h / 2 + rise, at: MELD_MS * hit };
+}
+
+/** The table jolts, briefly, from a hit. */
+export function jolt(el: HTMLElement | null | undefined) {
+  if (!el || typeof el.animate !== "function" || calm()) return;
+  el.animate(
+    [
+      { transform: "none" },
+      { transform: "translate(4px, -3px)" },
+      { transform: "translate(-4px, 2px)" },
+      { transform: "translate(2px, 1px)" },
+      { transform: "none" },
+    ],
+    { duration: 220, easing: "ease-out" },
+  );
 }
 
 /** A tile in the tray closes up a gap: it slides in from `dx` pixels away. */
@@ -194,8 +250,8 @@ type Bit = {
 
 export type Fx = {
   canvas: HTMLCanvasElement;
-  /** Petals and sparks thrown out from a point (in window coordinates). */
-  burst(x: number, y: number, colors: string[]): void;
+  /** Petals and sparks thrown out from a point (in window coordinates); `blast` throws more, faster. */
+  burst(x: number, y: number, colors: string[], blast?: boolean): void;
   /** A faint trail of sparks behind `el` while it moves, for `ms` after `delay`. */
   follow(el: HTMLElement, ms: number, delay?: number): void;
   /** Petals drifting down the whole board, for a board cleared. */
@@ -278,13 +334,13 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
 
   return {
     canvas,
-    burst(x, y, colors) {
+    burst(x, y, colors, blast = false) {
       const box = canvas.getBoundingClientRect();
       const more: Bit[] = [];
-      for (let k = 0; k < 36; k++) {
-        const petal = k % 2 === 0;
+      for (let k = 0; k < (blast ? 70 : 36); k++) {
+        const petal = blast ? k % 3 === 0 : k % 2 === 0;
         const angle = rand(0, Math.PI * 2);
-        const speed = petal ? rand(160, 420) : rand(220, 620);
+        const speed = petal ? rand(160, 420) * (blast ? 1.4 : 1) : rand(220, 620) * (blast ? 1.8 : 1);
         more.push({
           x: x - box.left,
           y: y - box.top,
