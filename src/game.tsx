@@ -942,19 +942,20 @@ function Tray({
       className={`tray${session.tray.length >= S.TRAY ? " full" : session.tray.length >= S.ROOM ? " tight" : ""}`}
       aria-label={t("Tray: {0} of {1} places taken", String(session.tray.length), String(S.TRAY))}
     >
-      {places.map(({ id, gone }) =>
-        gone ? (
-          <li key={id} className="tray-place held gone" data-tray={id} aria-hidden="true">
-            {face(gone.face)}
-          </li>
-        ) : (
-          <li key={id} className={`tray-place held${hint?.includes(id) ? " hinted" : ""}`} data-tray={id} aria-label={label(session.faces[id])}>
-            {face(session.faces[id])}
-          </li>
-        ),
-      )}
-      {Array.from({ length: Math.max(0, S.TRAY - places.length) }, (_, k) => (
-        <li key={`empty-${k}`} className="tray-place" aria-hidden="true" />
+      {Array.from({ length: S.TRAY }, (_, k) => (
+        <li key={`well-${k}`} className={`tray-place well${k >= places.length ? " empty" : ""}`} style={{ gridColumn: k + 1 }} aria-hidden="true" />
+      ))}
+      {places.map(({ id, gone }, k) => (
+        <li
+          key={id}
+          className={`tray-place held${gone ? " gone" : hint?.includes(id) ? " hinted" : ""}`}
+          style={{ gridColumn: Math.min(k + 1, S.TRAY) }}
+          data-tray={id}
+          aria-hidden={gone ? true : undefined}
+          aria-label={gone ? undefined : label(session.faces[id])}
+        >
+          {face(gone?.face ?? session.faces[id])}
+        </li>
       ))}
       {over.map((g) => (
         <li key={g.id} className="tray-place held gone over" data-tray={g.id} aria-hidden="true" style={{ ["--at" as string]: g.at }}>
