@@ -1,7 +1,4 @@
-# Tests every pull request. A push to main (merging a pull request) also
-# builds the zip and publishes it on dingn with the DINGN_UPLOAD_KEY secret,
-# when version in game.json is one dingn doesn't have yet. The upload then
-# waits in dingn's review queue and goes live once it is approved.
+# Test and package every pull request. Publish and approve releases from main.
 name: Build and publish
 
 on:
@@ -33,10 +30,11 @@ jobs:
         with:
           name: tilezen-zip
           path: release/*.zip
-      - name: Publish on dingn
-        if: github.event_name != 'pull_request'
+      - name: Upload and approve on dingn
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
           DINGN_UPLOAD_KEY: ${{ secrets.DINGN_UPLOAD_KEY }}
+          DINGN_REVIEW_KEY: ${{ secrets.DINGN_REVIEW_KEY }}
         run: |
           if [ -z "$DINGN_UPLOAD_KEY" ]; then
             echo "::warning::No DINGN_UPLOAD_KEY secret yet, so nothing was published. See README.md."

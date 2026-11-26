@@ -944,6 +944,26 @@ h2 {
   opacity: 0.45;
   cursor: default;
 }
+.play-actions {
+  flex: none;
+}
+/* A wide table has room for the rack and its controls in one row. */
+@media (min-width: 800px) {
+  .play-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 6px 16px max(12px, env(safe-area-inset-bottom));
+  }
+  .play-actions .toolbar {
+    padding: 0;
+  }
+  .play-actions .tool {
+    flex: none;
+    min-width: 68px;
+  }
+}
 .note {
   position: absolute;
   left: 50%;

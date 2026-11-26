@@ -11,9 +11,10 @@ Notes for AI coding agents working on Tile Zen (静心麻将).
   when `version` in `game.json` is new.
 - Bump `version` in `game.json` for every release; dingn refuses a version it
   already has.
-- When the owner says "release": merge the pull request, wait for the upload
-  (`https://dingn.com/api/games/tilezen?v=<version>` answers with it), approve
-  it, and check `https://dingn.com/api/games/tilezen` shows it live. Approve
+- When the owner says "release": merge the pull request, wait for the workflow
+  to upload and approve the version, and check
+  `https://dingn.com/api/games/tilezen` shows it live. If the workflow
+  uploaded without a review key, approve the pending version manually
   with `POST https://dingn.com/api/admin/games/update` and the JSON body
   `{"id":"tilezen","action":"set-live","version":"<version>"}`. The owner's
   review key is saved on their cloud environment and added to requests to
