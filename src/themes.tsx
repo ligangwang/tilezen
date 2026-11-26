@@ -390,6 +390,7 @@ export function bitmap(svg: string, width: number, height: number): Promise<stri
           canvas.width = Math.max(1, Math.round(width));
           canvas.height = Math.max(1, Math.round(height));
           canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+          drawnCanvas.set(svg, canvas);
           canvas.toBlob((blob) => resolve(blob ? URL.createObjectURL(blob) : svg), "image/png");
         } catch {
           resolve(svg);
@@ -403,6 +404,9 @@ export function bitmap(svg: string, width: number, height: number): Promise<stri
   return made;
 }
 const bitmaps = new Map<string, Promise<string>>();
+const drawnCanvas = new Map<string, HTMLCanvasElement>();
+/** The bitmap last made of a picture, as a canvas to draw from, if one has been made. */
+export const drawnTile = (svg: string) => drawnCanvas.get(svg) ?? null;
 
 /** How big a tile's picture is, in the units where the tile is 100 x 136. */
 export const TILE_PICTURE = { w: 112, h: 150 };

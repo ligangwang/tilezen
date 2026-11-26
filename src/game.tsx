@@ -9,7 +9,7 @@ import * as S from "./engine/session";
 import { badgesFor, BIG_BOARD } from "./badges";
 import { DAILY_COINS, FREE_LEVELS, OPEN_DEPTH, coinsFor, dailyLayout, daySeed, depthFor, layoutFor, levelSeed, today } from "./levels";
 import { loadSaved, merge, store, type Prefs, type Saved } from "./save";
-import { FACE_COUNT, THEMES, faceImage, faceLabel, openThemes, themeById, type Theme } from "./themes";
+import { FACE_COUNT, THEMES, drawnTile, faceImage, faceLabel, tileImage, openThemes, themeById, type Theme } from "./themes";
 import * as sound from "./sound";
 import { Icon } from "./icons";
 import { FLY_MS, MELD_MS, REST_MS, createFx, fly, meld, slide, type Fx } from "./fx";
@@ -290,7 +290,17 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     setTimeout(() => {
       if (current.current !== started) return;
       const [a, b] = [twin, i].map((id) => playEl.current?.querySelector<HTMLElement>(`[data-tray="${id}"]`));
-      const met = a && b && playEl.current ? meld(playEl.current.querySelector<HTMLElement>(".melds")!, a, b, effects()) : null;
+      // Drawn on the effects canvas from the board tile's own picture
+      // where there is one; otherwise copies of the tiles (fx.ts meld).
+      const fx = effects();
+      const picture = drawnTile(tileImage(theme, s.faces[twin], false)) ?? drawnTile(tileImage(theme, s.faces[twin], true));
+      const colors = [theme.tile, theme.tile, theme.edge];
+      const met =
+        a && b && fx && picture
+          ? fx.smash({ picture, a: a.getBoundingClientRect(), b: b.getBoundingClientRect(), colors })
+          : a && b && playEl.current
+            ? meld(playEl.current.querySelector<HTMLElement>(".melds")!, a, b, fx)
+            : null;
       setTrayLeaving((l) => l.filter((x) => !pair.includes(x)));
       const box = playEl.current?.getBoundingClientRect();
       setTimeout(() => {
