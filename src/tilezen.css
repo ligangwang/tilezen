@@ -462,18 +462,6 @@ h2 {
     1px 2px 3px rgba(0, 0, 0, 0.42),
     4px 7px 12px rgba(0, 0, 0, 0.4);
 }
-/* A tile that can be picked answers the pointer. */
-.tile.free:hover {
-  transform: translate(-1px, -2px);
-}
-/* A blocked tile sits in shade, side and all. */
-.tile.dim .face::after,
-.tile.dim .side::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: rgba(24, 30, 26, 0.4);
-}
 /* A hint: the tile to pick glows; its twin wears a quieter ring, even when
    it is covered. */
 .tile.hinted .face,
