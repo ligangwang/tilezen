@@ -111,14 +111,17 @@ To play it inside dingn while developing, open the
 2. Merge it to `main`. The **Build and publish** Action tests the game,
    builds `release/tilezen-<version>.zip` and uploads it to dingn with the
    `DINGN_UPLOAD_KEY` secret.
-3. The new version waits in dingn's review queue and goes live once it is
-   approved.
+3. The same job approves that version with `DINGN_REVIEW_KEY` and checks
+   that dingn reports it live. With only the upload key, the version waits
+   for manual review. Rerunning the workflow on `main` can finish approval
+   for an already uploaded, pending version.
 
-### The upload key
+### Actions secrets
 
 Create a key on <https://dingn.com/developers/games/> (signed in as the
 account that owns the game), then add it to this repository under
 **Settings → Secrets and variables → Actions** as `DINGN_UPLOAD_KEY`.
+Add the dingn review key there as `DINGN_REVIEW_KEY` for automatic approval.
 
 ## Credits
 

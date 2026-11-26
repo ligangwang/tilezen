@@ -580,32 +580,34 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                   {note}
                 </div>
               )}
-              <Tray session={run.session} theme={theme} hint={hint} leaving={trayLeaving} />
-              <footer className="toolbar">
-                <button type="button" className="tool" onClick={onHint} disabled={done}>
-                  <span className="tool-icon"><Icon name="hint" size={26} /></span>
-                  {t("Hint")}
-                </button>
-                <button type="button" className="tool" onClick={onUndo} disabled={done || !run.session.history.length}>
-                  <span className="tool-icon"><Icon name="undo" size={26} /></span>
-                  {t("Undo")}
-                </button>
-                <button
-                  type="button"
-                  className="tool"
-                  onClick={() => onShuffle()}
-                  disabled={done}
-                >
-                  <span className="tool-icon"><Icon name="shuffle" size={26} /></span>
-                  {t("Shuffle")}
-                </button>
-                {sdk.player.tester && run.mode === "level" && !result && (
-                  <button type="button" className="tool" onClick={() => finish(run, run.session)}>
-                    <span className="tool-icon"><Icon name="skip" size={26} /></span>
-                    {t("Skip")}
+              <div className="play-actions">
+                <Tray session={run.session} theme={theme} hint={hint} leaving={trayLeaving} />
+                <footer className="toolbar">
+                  <button type="button" className="tool" onClick={onHint} disabled={done}>
+                    <span className="tool-icon"><Icon name="hint" size={26} /></span>
+                    {t("Hint")}
                   </button>
-                )}
-              </footer>
+                  <button type="button" className="tool" onClick={onUndo} disabled={done || !run.session.history.length}>
+                    <span className="tool-icon"><Icon name="undo" size={26} /></span>
+                    {t("Undo")}
+                  </button>
+                  <button
+                    type="button"
+                    className="tool"
+                    onClick={() => onShuffle()}
+                    disabled={done}
+                  >
+                    <span className="tool-icon"><Icon name="shuffle" size={26} /></span>
+                    {t("Shuffle")}
+                  </button>
+                  {sdk.player.tester && run.mode === "level" && !result && (
+                    <button type="button" className="tool" onClick={() => finish(run, run.session)}>
+                      <span className="tool-icon"><Icon name="skip" size={26} /></span>
+                      {t("Skip")}
+                    </button>
+                  )}
+                </footer>
+              </div>
             </>
           )}
           {lost && !result && S.failed(run.session) && (

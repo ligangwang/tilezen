@@ -69,7 +69,7 @@ export function BoardView(props: Props) {
   const d = Math.max(3, w * DEPTH);
   const boardW = (maxX / 2) * w + (maxZ + 1) * d;
   const boardH = (maxY / 2) * h + (maxZ + 1) * d;
-  const scrolls = boardW > space.w || boardH > space.h;
+  const scrolls = boardW + pad * 2 > space.w || boardH + pad * 2 > space.h;
 
   // Bring a hinted tile into view when the board scrolls.
   useEffect(() => {
