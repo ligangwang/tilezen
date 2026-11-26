@@ -29,7 +29,7 @@ export function fly(el: HTMLElement, from: DOMRect, fx?: Fx | null) {
   // A player who asked for less motion still sees where the tile went: a
   // short, plain glide, with no lift, settle or trail.
   if (calm()) {
-    el.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${scale})` }, { transform: "none" }], { duration: 160, easing: "ease-out" });
+    el.animate([{ transform: `translate(${dx}px, ${dy}px) scale(${scale})` }, { transform: "none" }], { duration: 160, easing: "ease-out", fill: "backwards" });
     return;
   }
   const LIFT = 0.16;
@@ -53,7 +53,7 @@ export function fly(el: HTMLElement, from: DOMRect, fx?: Fx | null) {
   frames.push({ offset: 0.92, transform: "translate(0, 2px) scale(1.04, 0.95)" });
   frames.push({ offset: 1, transform: "none" });
   el.style.zIndex = "400";
-  const flight = el.animate(frames, { duration: FLY_MS, easing: "linear" });
+  const flight = el.animate(frames, { duration: FLY_MS, easing: "linear", fill: "backwards" });
   flight.onfinish = flight.oncancel = () => {
     el.style.zIndex = "";
   };

@@ -792,7 +792,8 @@ h2 {
   list-style: none;
   margin: 0;
   padding: 11px 10px;
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, var(--tw)));
   justify-content: center;
   gap: 8px;
 }
@@ -815,12 +816,15 @@ h2 {
 }
 .tray-place {
   position: relative;
+  grid-row: 1;
   z-index: 0;
   --d: 5px;
   --r: 7px;
-  width: var(--tw);
+  width: 100%;
   height: var(--th);
   border-radius: var(--r);
+}
+.tray-place.well {
   background: rgba(20, 10, 4, 0.42);
   box-shadow:
     inset 0 2px 5px rgba(0, 0, 0, 0.55),
@@ -842,13 +846,11 @@ h2 {
 }
 .tray-place.gone.over {
   position: absolute;
+  width: var(--tw);
+  grid-row: auto;
   z-index: 5;
   top: 11px;
   left: calc(50% - (var(--tw) * 4 + 24px) / 2 + var(--at) * (var(--tw) + 8px) + var(--tw) * 0.5);
-}
-.tray-place.held {
-  background: none;
-  box-shadow: none;
 }
 /* One place left: the rim lights as a warning, since one more tile that
    is no twin fails the board. Full, it turns red. */
@@ -859,7 +861,7 @@ h2 {
     0 0 0 2.5px #ffcf4a,
     0 0 18px 2px rgba(255, 207, 74, 0.55);
 }
-.tray.tight .tray-place:not(.held) {
+.tray.tight .well.empty {
   animation: last-place 1s ease-in-out infinite alternate;
 }
 @keyframes last-place {
