@@ -83,8 +83,6 @@
   "Four different tiles are waiting and none has its twin, so this board is lost.": "牌槽里有四张不同的牌，都没等到另一张，这一局失败了。",
   "Try again": "再试一次",
   "Take the last tile back": "撤回最后一张牌",
-  "One place left in the tray, and no free tile matches the tiles in it.": "牌槽只剩一个位置，也没有能和槽里的牌配对的牌。",
-  "Shuffle or undo: one more tile would fill the tray.": "请洗牌或撤回：再拿一张牌，牌槽就满了。",
   "The tray holds four tiles, so you can lift a tile out of the way to reach one under it. Fill it with four different tiles and the board is lost.": "牌槽能放四张牌，可以先把挡路的牌拿开，好拿到下面的牌。牌槽里放满四张不同的牌，这一局就失败了。",
   "Challenge anyone": "向大家发起挑战",
   "Share your challenge": "分享你的挑战",

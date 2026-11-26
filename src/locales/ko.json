@@ -83,8 +83,6 @@
   "Four different tiles are waiting and none has its twin, so this board is lost.": "서로 다른 패 네 개가 기다리고 있고 짝이 하나도 없어서, 이번 판은 실패입니다.",
   "Try again": "다시 도전",
   "Take the last tile back": "마지막 패 되돌리기",
-  "One place left in the tray, and no free tile matches the tiles in it.": "트레이에 한 칸만 남았고, 트레이의 패와 짝이 되는 패를 빼낼 수 없어요.",
-  "Shuffle or undo: one more tile would fill the tray.": "섞거나 되돌리세요. 패를 하나 더 올리면 트레이가 가득 찹니다.",
   "The tray holds four tiles, so you can lift a tile out of the way to reach one under it. Fill it with four different tiles and the board is lost.": "트레이에는 패를 네 개까지 올릴 수 있어서, 막고 있는 패를 치우고 아래 패를 꺼낼 수 있어요. 서로 다른 패 네 개로 가득 차면 그 판은 실패입니다.",
   "Challenge anyone": "누구에게나 도전장 보내기",
   "Share your challenge": "내 도전 공유하기",

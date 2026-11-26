@@ -83,8 +83,6 @@
   "Four different tiles are waiting and none has its twin, so this board is lost.": "Há quatro peças diferentes esperando e nenhuma tem seu par, então este tabuleiro está perdido.",
   "Try again": "Tentar de novo",
   "Take the last tile back": "Devolver a última peça",
-  "One place left in the tray, and no free tile matches the tiles in it.": "Resta um lugar na bandeja e nenhuma peça livre combina com as que estão nela.",
-  "Shuffle or undo: one more tile would fill the tray.": "Embaralhe ou desfaça: mais uma peça encheria a bandeja.",
   "The tray holds four tiles, so you can lift a tile out of the way to reach one under it. Fill it with four different tiles and the board is lost.": "A bandeja comporta quatro peças, então você pode tirar uma peça do caminho para alcançar a que está embaixo. Se enchê-la com quatro peças diferentes, você perde o tabuleiro.",
   "Challenge anyone": "Desafiar qualquer pessoa",
   "Share your challenge": "Compartilhar seu desafio",

@@ -48,7 +48,8 @@ Notes for AI coding agents working on Tile Zen (静心麻将).
   open challenges, and raise `SCORE_RULES` in `src/game.tsx` when the
   scoring changes.
 - Blocked tiles look like any other: no shading and no hover cue. Telling
-  which tile can be picked is part of the game.
+  which tile can be picked is part of the game, and so is seeing a dead end
+  (one place left, no free twin): the game doesn't point it out.
 - Tile Zen is an original game: its name, layouts, tile drawings and sounds
   are our own. Don't copy names, art, layouts or sounds from other mahjong
   solitaire games.

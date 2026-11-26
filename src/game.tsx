@@ -12,7 +12,7 @@ import { loadSaved, merge, store, type Prefs, type Saved } from "./save";
 import { FACE_COUNT, THEMES, TileDefs, faceArt, faceLabel, openThemes, themeById, type Theme } from "./themes";
 import * as sound from "./sound";
 import { Icon } from "./icons";
-import { FLY_MS, POP_MS, REST_MS, createFx, fly, pop, slide, type Fx } from "./fx";
+import { FLY_MS, MELD_MS, REST_MS, createFx, fly, meld, slide, type Fx } from "./fx";
 
 type Mode = "level" | "daily" | "free";
 type Run = {
@@ -60,8 +60,8 @@ type Result = {
   opened: string[];
 };
 type Screen = "menu" | "play" | "layouts" | "themes";
-/** How long a matched tile takes to fly to the tray, and the pair to meet and pop. */
-const LEAVE_MS = FLY_MS + REST_MS + POP_MS;
+/** How long a matched tile takes to fly to the tray and rest beside its twin. */
+const LEAVE_MS = FLY_MS + REST_MS;
 /**
  * A matched tile on its way out, still shown in the tray: at place `slot`,
  * or with `slot` null (the tray was full) half over its twin at place `at`.
@@ -113,7 +113,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
       now.set(id, el.offsetLeft);
       const from = flights.current.get(Number(id));
       const was = places.current.get(id);
-      if (from) fly(el, from);
+      if (from) fly(el, from, effects());
       else if (was !== undefined && was !== el.offsetLeft) slide(el, was - el.offsetLeft);
     }
     places.current = now;
@@ -285,24 +285,26 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
     ];
     setTrayLeaving((l) => [...l, ...pair]);
     setTimeout(() => current.current === started && sound.play("land"), FLY_MS);
+    // Rested beside its twin, the pair rises out of the tray as one card
+    // (fx.ts), and their places are free again at once.
     setTimeout(() => {
       if (current.current !== started) return;
-      setPending((p) => p - gain);
-      sound.play("match", s.streak);
       const [a, b] = [twin, i].map((id) => playEl.current?.querySelector<HTMLElement>(`[data-tray="${id}"]`));
-      const [ra, rb] = [a, b].map((el) => el?.getBoundingClientRect());
-      if (!a || !b || !ra?.width || !rb) return;
-      const gap = rb.left - ra.left;
-      pop(a, gap / 2);
-      pop(b, -gap / 2);
-      const mid = ra.left + gap / 2 + ra.width / 2;
-      effects()?.burst(mid, ra.top + ra.height / 2, petals(theme));
-      const box = playEl.current!.getBoundingClientRect();
-      float(`+${gain}`, false, mid - box.left, ra.top - box.top);
-    }, FLY_MS + REST_MS);
-    setTimeout(() => setTrayLeaving((l) => l.filter((x) => !pair.includes(x))), LEAVE_MS);
+      const met = a && b && playEl.current ? meld(playEl.current.querySelector<HTMLElement>(".melds")!, a, b) : null;
+      setTrayLeaving((l) => l.filter((x) => !pair.includes(x)));
+      const box = playEl.current?.getBoundingClientRect();
+      setTimeout(() => {
+        if (current.current !== started) return;
+        setPending((p) => p - gain);
+        sound.play("match", s.streak);
+        if (met && box) {
+          effects()?.burst(met.x, met.y, petals(theme));
+          float(`+${gain}`, false, met.x - box.left, met.y - box.top - 40);
+        }
+      }, met?.at ?? 0);
+    }, LEAVE_MS);
     // The last pair is seen leaving before the result covers the board.
-    if (S.cleared(next)) setTimeout(() => void finish(run, next), LEAVE_MS);
+    if (S.cleared(next)) setTimeout(() => void finish(run, next), LEAVE_MS + MELD_MS * 0.38);
   }
 
   function onHint() {
@@ -564,12 +566,6 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                 large={prefs.large}
                 onTile={onTile}
               />
-              {!result && run.session.deadEnd && (
-                <div className="stuck" role="status">
-                  <strong>{t("One place left in the tray, and no free tile matches the tiles in it.")}</strong>
-                  <span>{t("Shuffle or undo: one more tile would fill the tray.")}</span>
-                </div>
-              )}
               {floats.filter((f) => f.x !== undefined).map((f) => (
                 <em key={f.id} className="float" style={{ left: f.x, top: f.y }}>
                   {f.text}
@@ -597,7 +593,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
                 </button>
                 <button
                   type="button"
-                  className={`tool${run.session.deadEnd ? " glow" : ""}`}
+                  className="tool"
                   onClick={() => onShuffle()}
                   disabled={done}
                 >
@@ -635,6 +631,7 @@ export function TileZen({ initial, prefs: initialPrefs }: { initial: Saved; pref
               </div>
             </div>
           )}
+          <div className="melds" aria-hidden="true" />
           <canvas className="fx" ref={fxCanvas} aria-hidden="true" />
           {result && (
             <div className="overlay result">

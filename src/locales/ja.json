@@ -83,8 +83,6 @@
   "Four different tiles are waiting and none has its twin, so this board is lost.": "違う牌が四枚たまり、どれもペアができないため、この盤面は失敗です。",
   "Try again": "もう一度挑戦",
   "Take the last tile back": "最後の牌を戻す",
-  "One place left in the tray, and no free tile matches the tiles in it.": "トレイの空きはあと一つで、トレイの牌とペアになる取れる牌がありません。",
-  "Shuffle or undo: one more tile would fill the tray.": "シャッフルするか戻してください。あと一枚でトレイがいっぱいになります。",
   "The tray holds four tiles, so you can lift a tile out of the way to reach one under it. Fill it with four different tiles and the board is lost.": "トレイには四枚まで置けるので、じゃまな牌をどかして下の牌を取れます。違う牌が四枚たまると、その盤面は失敗です。",
   "Challenge anyone": "みんなに挑戦状を出す",
   "Share your challenge": "自分のチャレンジを共有",
