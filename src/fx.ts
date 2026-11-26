@@ -35,10 +35,10 @@ export function fly(el: HTMLElement, from: DOMRect, fx?: Fx | null) {
   const LIFT = 0.16;
   const LAND = 0.84;
   const frames: Keyframe[] = [];
-  const shadow = (k: number) => `drop-shadow(0 ${(4 + 14 * k).toFixed(1)}px ${(4 + 12 * k).toFixed(1)}px rgba(0,0,0,${(0.2 + 0.25 * k).toFixed(2)}))`;
-  // Lifted where it lay: up a little, a little bigger, its shadow wider.
-  frames.push({ offset: 0, transform: `translate(${dx}px, ${dy}px) scale(${scale})`, filter: shadow(0) });
-  frames.push({ offset: LIFT, transform: `translate(${dx}px, ${dy - 10}px) scale(${scale * 1.12})`, filter: shadow(1) });
+  // Lifted where it lay: up a little and a little bigger. (Only the
+  // transform moves, which phones can do without redrawing the tile.)
+  frames.push({ offset: 0, transform: `translate(${dx}px, ${dy}px) scale(${scale})` });
+  frames.push({ offset: LIFT, transform: `translate(${dx}px, ${dy - 10}px) scale(${scale * 1.12})` });
   // Carried straight to its place, quick in the middle and gentle at the ends.
   const steps = 8;
   for (let k = 1; k <= steps; k++) {
@@ -47,11 +47,11 @@ export function fly(el: HTMLElement, from: DOMRect, fx?: Fx | null) {
     const x = dx * (1 - e);
     const y = (dy - 10) * (1 - e);
     const s = (scale + (1 - scale) * e) * (1.12 - 0.08 * e);
-    frames.push({ offset: LIFT + (LAND - LIFT) * t, transform: `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) scale(${s.toFixed(3)})`, filter: shadow(1 - 0.5 * t) });
+    frames.push({ offset: LIFT + (LAND - LIFT) * t, transform: `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) scale(${s.toFixed(3)})` });
   }
   // Set down: a touch low and wide, then still.
-  frames.push({ offset: 0.92, transform: "translate(0, 2px) scale(1.04, 0.95)", filter: shadow(0.1) });
-  frames.push({ offset: 1, transform: "none", filter: shadow(0) });
+  frames.push({ offset: 0.92, transform: "translate(0, 2px) scale(1.04, 0.95)" });
+  frames.push({ offset: 1, transform: "none" });
   el.style.zIndex = "400";
   const flight = el.animate(frames, { duration: FLY_MS, easing: "linear" });
   flight.onfinish = flight.oncancel = () => {
@@ -173,28 +173,22 @@ export function meld(layer: HTMLElement, a: HTMLElement, b: HTMLElement, fx?: Fx
     // many, small and jagged.
     const rim: [number, number][] = [[side(100), 0]];
     const steps = (from: number, to: number, n: number) => Array.from({ length: n }, (_, i) => from + ((to - from) * (i + 1)) / (n + 1));
-    for (const x of steps(100, 0, 11)) rim.push([side(x + j() / 3), 0]);
+    for (const x of steps(100, 0, 6)) rim.push([side(x + j() / 2), 0]);
     rim.push([side(0), 0]);
-    for (const y of steps(0, 100, 13)) rim.push([side(0), y + j() / 3]);
+    for (const y of steps(0, 100, 8)) rim.push([side(0), y + j() / 2]);
     rim.push([side(0), 100]);
-    for (const x of steps(0, 100, 11)) rim.push([side(x + j() / 3), 100]);
+    for (const x of steps(0, 100, 6)) rim.push([side(x + j() / 2), 100]);
     rim.push([side(100), 100]);
-    // Each wedge from the point of the hit breaks across three times, so
-    // there are shards of every size, the smallest at the outer edge.
+    // Each wedge from the point of the hit breaks across twice, so there
+    // are shards of every size, the smallest at the outer edge.
     const pieces: [number, number][][] = [];
     for (let n = 0; n < rim.length - 1; n++) {
       const q = rim[n];
       const r = rim[n + 1];
-      const f1 = 0.22 + Math.random() * 0.12;
-      const f2 = 0.5 + Math.random() * 0.12;
-      const f3 = 0.75 + Math.random() * 0.1;
+      const f1 = 0.3 + Math.random() * 0.12;
+      const f2 = 0.66 + Math.random() * 0.12;
       const at = (u: [number, number], f: number): [number, number] => [p[0] + (u[0] - p[0]) * f, p[1] + (u[1] - p[1]) * f];
-      pieces.push(
-        [p, at(q, f1), at(r, f1)],
-        [at(q, f1), at(q, f2), at(r, f2), at(r, f1)],
-        [at(q, f2), at(q, f3), at(r, f3), at(r, f2)],
-        [at(q, f3), q, r, at(r, f3)],
-      );
+      pieces.push([p, at(q, f1), at(r, f1)], [at(q, f1), at(q, f2), at(r, f2), at(r, f1)], [at(q, f2), q, r, at(r, f2)]);
     }
     for (const [index, piece] of pieces.entries()) {
       const mx = piece.reduce((t, u) => t + u[0], 0) / piece.length;
@@ -205,7 +199,7 @@ export function meld(layer: HTMLElement, a: HTMLElement, b: HTMLElement, fx?: Fx
       // A few pieces nearest the hit carry the drawing and
       // move as copies of the tile; all the rest are chips drawn on the
       // canvas, which is far cheaper.
-      if (index % 12 !== 0) {
+      if (index % 9 !== 0) {
         const pts = piece.map(([x, y]) => toWindow(k * w + (x / 100) * w, (y / 100) * h));
         const ox = pts.reduce((t, u) => t + u[0], 0) / pts.length;
         const oy = pts.reduce((t, u) => t + u[1], 0) / pts.length;
@@ -217,7 +211,7 @@ export function meld(layer: HTMLElement, a: HTMLElement, b: HTMLElement, fx?: Fx
           vx: (cx / len) * speed,
           vy: (cy / len) * speed * 0.8 - 140,
           spin: (Math.random() - 0.5) * 14,
-          color: Math.random() < 0.12 ? back : chipColors[index % 4 < 2 ? 0 : Math.round(Math.random())],
+          color: Math.random() < 0.12 ? back : chipColors[index % 3 < 2 ? 0 : Math.round(Math.random())],
         });
         continue;
       }
@@ -283,21 +277,6 @@ export function meld(layer: HTMLElement, a: HTMLElement, b: HTMLElement, fx?: Fx
   return { x: mid, y: ra.top + h / 2 + rise, at: MELD_MS * hit };
 }
 
-/** The table jolts, briefly, from a hit. */
-export function jolt(el: HTMLElement | null | undefined) {
-  if (!el || typeof el.animate !== "function" || calm()) return;
-  el.animate(
-    [
-      { transform: "none" },
-      { transform: "translate(4px, -3px)" },
-      { transform: "translate(-4px, 2px)" },
-      { transform: "translate(2px, 1px)" },
-      { transform: "none" },
-    ],
-    { duration: 220, easing: "ease-out" },
-  );
-}
-
 /** A tile in the tray closes up a gap: it slides in from `dx` pixels away. */
 export function slide(el: HTMLElement, dx: number) {
   if (typeof el.animate !== "function" || calm()) return;
@@ -353,7 +332,8 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
     const dt = Math.min(0.04, (now - last) / 1000 || 0.016);
     last = now;
     const box = canvas.getBoundingClientRect();
-    const ratio = Math.min(2, window.devicePixelRatio || 1);
+    // Fine enough for flying bits, and far fewer pixels to fill on a phone.
+    const ratio = Math.min(1.5, window.devicePixelRatio || 1);
     if (canvas.width !== Math.round(box.width * ratio) || canvas.height !== Math.round(box.height * ratio)) {
       canvas.width = Math.round(box.width * ratio);
       canvas.height = Math.round(box.height * ratio);
@@ -373,9 +353,10 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
       b.x += (b.vx + (b.petal ? Math.sin(b.age * 5 + b.turn) * 26 : 0)) * dt;
       b.y += b.vy * dt;
       b.turn += b.spin * dt;
-      pen!.save();
-      pen!.translate(b.x, b.y);
-      pen!.rotate(b.turn);
+      // Placed and turned in one step, which is cheaper than save and restore.
+      const cos = Math.cos(b.turn) * ratio;
+      const sin = Math.sin(b.turn) * ratio;
+      pen!.setTransform(cos, sin, -sin, cos, b.x * ratio, b.y * ratio);
       pen!.globalAlpha = Math.min(1, left * (b.petal || b.pts ? 2.5 : 1.6));
       pen!.fillStyle = b.color;
       if (b.pts) {
@@ -394,11 +375,6 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
       } else {
         // A four-pointed spark with a soft light around it.
         const r = b.size * (0.5 + 0.5 * left);
-        // A soft light around it, while there are few enough to afford it.
-        if (bits.length < 80) {
-          pen!.shadowColor = b.color;
-          pen!.shadowBlur = 8;
-        }
         pen!.beginPath();
         for (let k = 0; k < 8; k++) {
           const d = k % 2 ? r * 0.32 : r;
@@ -407,8 +383,8 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
         pen!.closePath();
         pen!.fill();
       }
-      pen!.restore();
     }
+    pen!.globalAlpha = 1;
     frame = bits.length ? requestAnimationFrame(draw) : 0;
   }
   function add(more: Bit[]) {
@@ -424,7 +400,7 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
     burst(x, y, colors, blast = false) {
       const box = canvas.getBoundingClientRect();
       const more: Bit[] = [];
-      for (let k = 0; k < (blast ? 90 : 36); k++) {
+      for (let k = 0; k < (blast ? 50 : 30); k++) {
         const petal = blast ? k % 3 === 0 : k % 2 === 0;
         const angle = rand(0, Math.PI * 2);
         const speed = petal ? rand(160, 420) * (blast ? 1.4 : 1) : rand(220, 620) * (blast ? 1.8 : 1);
