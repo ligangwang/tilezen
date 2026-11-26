@@ -4,7 +4,7 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import type { Session } from "./engine/session";
 import { isFree } from "./engine/board";
-import { TILE_PICTURE, bitmap, faceLabel, tileImage, type Theme } from "./themes";
+import { TILE_PICTURE, bitmap, faceLabel, madeBitmap, tileImage, type Theme } from "./themes";
 import { useLocale } from "./dingn";
 
 /** A tile's height over its width. */
@@ -119,7 +119,6 @@ export function BoardView(props: Props) {
               h={h}
               d={d}
               z={s.z}
-              raised={s.z > 0}
               n={n}
               onTile={tap}
             />
@@ -142,13 +141,12 @@ type TileProps = {
   h: number;
   d: number;
   z: number;
-  raised: boolean;
   n: number;
   onTile: (i: number) => void;
 };
 
 /** One tile on the board, drawn again only when something about it changes. */
-const Tile = memo(function Tile({ i, cls, label, theme, face, left, top, w, h, d, z, raised, n, onTile }: TileProps) {
+const Tile = memo(function Tile({ i, cls, label, theme, face, left, top, w, h, d, z, n, onTile }: TileProps) {
   const style: CSSProperties & Record<string, string | number> = {
     left,
     top,
@@ -159,20 +157,7 @@ const Tile = memo(function Tile({ i, cls, label, theme, face, left, top, w, h, d
     "--d": `${d}px`,
     "--r": `${(w * 0.12).toFixed(1)}px`,
   };
-  const pw = (w * TILE_PICTURE.w) / 100;
-  const ph = (h * TILE_PICTURE.h) / 136;
-  const svg = tileImage(theme, face, raised);
-  // The vector picture first, swapped for its bitmap as soon as that's made.
-  const [pic, setPic] = useState<{ svg: string; src: string }>({ svg, src: svg });
-  useEffect(() => {
-    let live = true;
-    const ratio = Math.min(3, window.devicePixelRatio || 1);
-    void bitmap(svg, pw * ratio, ph * ratio).then((src) => live && setPic({ svg, src }));
-    return () => {
-      live = false;
-    };
-  }, [svg, pw, ph]);
-  const src = pic.svg === svg ? pic.src : svg;
+  const { src, pw, ph } = useTilePicture(theme, face, w, h);
   return (
     <button type="button" data-tile={i} className={cls} aria-label={label} onClick={() => onTile(i)} style={style}>
       {/* The whole tile is one picture (themes.tsx), which phones show
@@ -182,3 +167,26 @@ const Tile = memo(function Tile({ i, cls, label, theme, face, left, top, w, h, d
     </button>
   );
 });
+
+/**
+ * A tile's picture for a tile `w` x `h` on screen (its own box): the
+ * picture's size (it runs past the box for the shadow) and its source.
+ */
+export function useTilePicture(theme: Theme, face: number, w: number, h: number) {
+  const pw = (w * TILE_PICTURE.w) / 100;
+  const ph = (h * TILE_PICTURE.h) / 136;
+  const svg = tileImage(theme, face);
+  // Usually made already, ahead of play (prepareTiles); if not, the
+  // vector picture shows until its bitmap is ready.
+  const [pic, setPic] = useState<{ svg: string; src: string }>(() => ({ svg, src: madeBitmap(svg) ?? svg }));
+  useEffect(() => {
+    const made = madeBitmap(svg);
+    if (made) return setPic({ svg, src: made });
+    let live = true;
+    void bitmap(svg).then((src) => live && setPic({ svg, src }));
+    return () => {
+      live = false;
+    };
+  }, [svg]);
+  return { src: pic.svg === svg ? pic.src : madeBitmap(svg) ?? svg, pw, ph };
+}

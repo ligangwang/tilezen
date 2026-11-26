@@ -57,8 +57,18 @@ export function fly(el: HTMLElement, from: DOMRect, fx?: Fx | null) {
   flight.onfinish = flight.oncancel = () => {
     el.style.zIndex = "";
   };
-  // A faint trail of light behind it.
-  fx?.follow(el, FLY_MS * LAND, FLY_MS * LIFT);
+  // A faint trail of light behind it, along the same path, worked out
+  // here rather than measured from the page on every frame.
+  const cx = to.left + to.width / 2;
+  const cy = to.top + to.height / 2;
+  fx?.follow(
+    (t) => {
+      const e = ease(t);
+      return [cx + dx * (1 - e), cy + (dy - 10) * (1 - e), to.width, to.height];
+    },
+    FLY_MS * (LAND - LIFT),
+    FLY_MS * LIFT,
+  );
 }
 
 /**
@@ -286,6 +296,17 @@ export function slide(el: HTMLElement, dx: number) {
 /** A chip of a broken tile, for the canvas: its outline around its middle (window px). */
 export type Chip = { x: number; y: number; pts: [number, number][]; vx: number; vy: number; spin: number; color: string };
 
+/**
+ * A matched pair to smash, drawn on the canvas: the two tiles' picture (a
+ * bitmap of the board tile, which runs past the tile for its shadow by
+ * TILE_PICTURE) and where each tile sits in the tray (window px).
+ */
+export type Smash = { picture: HTMLCanvasElement; a: DOMRect; b: DOMRect; colors: string[] };
+
+type Job = Smash & { start: number; hitDone: boolean; sprites: Sprite[][] };
+/** A shard of a tile picture, cut once: where its middle is on the tile (0-1), its size (0-1), and its piece of picture. */
+type Sprite = { mx: number; my: number; sw: number; sh: number; image: HTMLCanvasElement | null; pts?: [number, number][] };
+
 type Bit = {
   x: number;
   y: number;
@@ -301,6 +322,10 @@ type Bit = {
   petal: boolean;
   /** A chip of tile instead: its outline. */
   pts?: [number, number][];
+  /** A shard of a tile's picture instead, drawn this big. */
+  image?: HTMLCanvasElement;
+  w?: number;
+  h?: number;
 };
 
 export type Fx = {
@@ -309,8 +334,17 @@ export type Fx = {
   burst(x: number, y: number, colors: string[], blast?: boolean): void;
   /** Chips of a broken tile flying apart and falling, after `delay` ms. */
   shards(chips: Chip[], delay: number): void;
-  /** A faint trail of sparks behind `el` while it moves, for `ms` after `delay`. */
-  follow(el: HTMLElement, ms: number, delay?: number): void;
+  /**
+   * A matched pair rises out of the tray, draws back, rushes together and
+   * bursts into shards, all drawn on the canvas, with nothing added to the
+   * page. Returns where (window px) and when (ms from now) they hit.
+   */
+  smash(job: Smash): { x: number; y: number; at: number };
+  /**
+   * A faint trail of sparks along `path` (0-1 to a window point and the
+   * mover's size), for `ms` after `delay`.
+   */
+  follow(path: (t: number) => [number, number, number, number], ms: number, delay?: number): void;
   /** Petals drifting down the whole board, for a board cleared. */
   rain(colors: string[]): void;
   clear(): void;
@@ -322,6 +356,7 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
   const pen = canvas.getContext("2d");
   if (!pen) return null;
   let bits: Bit[] = [];
+  let jobs: Job[] = [];
   let frame = 0;
   let last = 0;
 
@@ -340,6 +375,7 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
     }
     pen!.setTransform(ratio, 0, 0, ratio, 0, 0);
     pen!.clearRect(0, 0, box.width, box.height);
+    jobs = jobs.filter((j) => drawJob(j, now, box, ratio));
     bits = bits.filter((b) => (b.age += dt) < b.life && b.y < box.height + 30);
     for (const b of bits) {
       if (b.age < 0) continue;
@@ -359,7 +395,9 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
       pen!.setTransform(cos, sin, -sin, cos, b.x * ratio, b.y * ratio);
       pen!.globalAlpha = Math.min(1, left * (b.petal || b.pts ? 2.5 : 1.6));
       pen!.fillStyle = b.color;
-      if (b.pts) {
+      if (b.image) {
+        pen!.drawImage(b.image, -b.w! / 2, -b.h! / 2, b.w!, b.h!);
+      } else if (b.pts) {
         pen!.beginPath();
         for (const [x, y] of b.pts) pen!.lineTo(x, y);
         pen!.closePath();
@@ -385,7 +423,156 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
       }
     }
     pen!.globalAlpha = 1;
-    frame = bits.length ? requestAnimationFrame(draw) : 0;
+    frame = bits.length || jobs.length ? requestAnimationFrame(draw) : 0;
+  }
+
+  const GROW = 1.4;
+  const PULL = 0.24;
+  /** Cuts a tile's picture into shards around the point of the hit, on side `k` (0 left, 1 right). */
+  function cut(picture: HTMLCanvasElement, k: number): Sprite[] {
+    const side = (x: number) => (k ? 1 - x : x);
+    const jit = () => (Math.random() - 0.5) * 0.12;
+    const p: [number, number] = [side(0.94), 0.5 + jit() / 2];
+    const rim: [number, number][] = [[side(1), 0]];
+    const steps = (n: number) => Array.from({ length: n }, (_, i) => (i + 1) / (n + 1));
+    for (const x of steps(5)) rim.push([side(1 - x + jit() / 3), 0]);
+    rim.push([side(0), 0]);
+    for (const y of steps(7)) rim.push([side(0), y + jit() / 3]);
+    rim.push([side(0), 1]);
+    for (const x of steps(5)) rim.push([side(x + jit() / 3), 1]);
+    rim.push([side(1), 1]);
+    // The tile's own box inside its picture, in picture pixels.
+    const bw = picture.width * (100 / 112);
+    const bh = picture.height * (136 / 150);
+    const out: Sprite[] = [];
+    for (let n = 0; n < rim.length - 1; n++) {
+      const q = rim[n];
+      const r = rim[n + 1];
+      const f1 = 0.32 + Math.random() * 0.12;
+      const f2 = 0.68 + Math.random() * 0.1;
+      const at = (u: [number, number], f: number): [number, number] => [p[0] + (u[0] - p[0]) * f, p[1] + (u[1] - p[1]) * f];
+      const pieces: [number, number][][] = [[p, at(q, f1), at(r, f1)], [at(q, f1), at(q, f2), at(r, f2), at(r, f1)], [at(q, f2), q, r, at(r, f2)]];
+      pieces.forEach((piece, band) => {
+        const xs = piece.map((u) => u[0]);
+        const ys = piece.map((u) => u[1]);
+        const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+        const sprite: Sprite = { mx: (x0 + x1) / 2, my: (y0 + y1) / 2, sw: Math.max(0.01, x1 - x0), sh: Math.max(0.01, y1 - y0), image: null };
+        if (band === 2) {
+          // The outer pieces are plain chips of the tile's colour: cheaper.
+          sprite.pts = piece.map(([x, y]) => [x - sprite.mx, y - sprite.my]);
+        } else {
+          const c = document.createElement("canvas");
+          c.width = Math.max(1, Math.ceil(sprite.sw * bw));
+          c.height = Math.max(1, Math.ceil(sprite.sh * bh));
+          const g = c.getContext("2d");
+          if (g) {
+            g.beginPath();
+            for (const [x, y] of piece) g.lineTo((x - x0) * bw, (y - y0) * bh);
+            g.closePath();
+            g.clip();
+            g.drawImage(picture, -x0 * bw, -y0 * bh);
+            sprite.image = c;
+          }
+        }
+        out.push(sprite);
+      });
+    }
+    return out;
+  }
+  /** Draws one smash at time `now`; false once it is done. */
+  function drawJob(j: Job, now: number, box: DOMRect, ratio: number) {
+    const e = now - j.start;
+    if (e < 0) return true;
+    const t = e / MELD_MS;
+    const tw = j.a.width;
+    const th = j.a.height;
+    const rise = -th * 1.35;
+    const mid = (j.a.left + j.b.right) / 2 - box.left;
+    const cy0 = j.a.top + th / 2 - box.top;
+    const up = ease(Math.min(1, t / PULL));
+    const s = 1 + (GROW - 1) * up;
+    const cy = cy0 + rise * up;
+    const touch = [mid - (tw * GROW) / 2, mid + (tw * GROW) / 2];
+    const start = [j.a.left + tw / 2 - box.left, j.b.left + tw / 2 - box.left];
+    const pulled = [Math.min(start[0], touch[0] - tw * 0.45), Math.max(start[1], touch[1] + tw * 0.45)];
+    if (t < MEET_AT) {
+      // Rising and drawing back, then rushing together, faster and faster.
+      for (const k of [0, 1]) {
+        const q = t < PULL ? 0 : (t - PULL) / (MEET_AT - PULL);
+        const cx = t < PULL ? start[k] + (pulled[k] - start[k]) * up : pulled[k] + (touch[k] - pulled[k]) * q * q;
+        const squash = t > MEET_AT - 0.02 ? 0.92 : 1;
+        const pw = tw * s * 1.12 * squash;
+        const ph = th * s * (150 / 136);
+        pen!.setTransform(ratio, 0, 0, ratio, 0, 0);
+        pen!.globalAlpha = 1;
+        pen!.drawImage(j.picture, cx - (tw * s * squash) / 2, cy - (th * s) / 2, pw, ph);
+      }
+      return true;
+    }
+    if (!j.hitDone) {
+      j.hitDone = true;
+      // The burst: every shard flies from where it was on its tile.
+      for (const k of [0, 1]) {
+        const left = touch[k] - (tw * GROW) / 2;
+        const top = cy - (th * GROW) / 2;
+        const px = k ? 0.06 : 0.94;
+        for (const sp of j.sprites[k]) {
+          const dx = sp.mx - px;
+          const dy = sp.my - 0.5;
+          const len = Math.hypot(dx, dy * 1.36) || 1;
+          const speed = tw * GROW * (1.8 + Math.random() * 2.4 + len * 2.2);
+          bits.push({
+            x: left + sp.mx * tw * GROW,
+            y: top + sp.my * th * GROW,
+            vx: (dx / len) * speed,
+            vy: ((dy * 1.36) / len) * speed * 0.8 - 160,
+            turn: 0,
+            spin: (Math.random() - 0.5) * 12,
+            size: 0,
+            age: 0,
+            life: 0.8 + Math.random() * 0.4,
+            color: j.colors[Math.floor(Math.random() * j.colors.length)],
+            petal: false,
+            image: sp.image ?? undefined,
+            w: sp.sw * tw * GROW,
+            h: sp.sh * th * GROW,
+            pts: sp.pts?.map(([x, y]) => [x * tw * GROW, y * th * GROW]),
+          });
+        }
+      }
+    }
+    // The light of the hit: a burst, a flash along the seam, a shock ring.
+    const after = (t - MEET_AT) / 0.3;
+    if (after >= 1) return false;
+    const size = tw * GROW;
+    pen!.setTransform(ratio, 0, 0, ratio, 0, 0);
+    if (after < 0.66) {
+      const k = after / 0.66;
+      const r = size * (0.5 + 1.1 * k);
+      const glow = pen!.createRadialGradient(mid, cy, 0, mid, cy, r);
+      glow.addColorStop(0, "rgba(255,255,255,1)");
+      glow.addColorStop(0.2, "rgba(255,240,180,0.95)");
+      glow.addColorStop(0.45, "rgba(255,200,70,0.55)");
+      glow.addColorStop(1, "rgba(255,170,40,0)");
+      pen!.globalAlpha = 1 - k;
+      pen!.fillStyle = glow;
+      pen!.fillRect(mid - r, cy - r, r * 2, r * 2);
+    }
+    if (after < 0.35) {
+      const k = after / 0.35;
+      pen!.globalAlpha = 1 - k;
+      pen!.fillStyle = "#ffffff";
+      const fw = 6 + 30 * k;
+      pen!.fillRect(mid - fw / 2, cy - th * GROW * 0.56, fw, th * GROW * 1.12);
+    }
+    pen!.globalAlpha = 1 - after;
+    pen!.strokeStyle = "rgba(255,240,180,0.95)";
+    pen!.lineWidth = 4;
+    pen!.beginPath();
+    pen!.arc(mid, cy, size * (0.3 + 1.6 * (1 - (1 - after) ** 3)), 0, Math.PI * 2);
+    pen!.stroke();
+    pen!.globalAlpha = 1;
+    return true;
   }
   function add(more: Bit[]) {
     bits.push(...more);
@@ -422,6 +609,15 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
       }
       add(more);
     },
+    smash(job) {
+      const j: Job = { ...job, start: performance.now(), hitDone: false, sprites: [cut(job.picture, 0), cut(job.picture, 1)] };
+      jobs.push(j);
+      if (!frame) {
+        last = performance.now();
+        frame = requestAnimationFrame(draw);
+      }
+      return { x: (job.a.left + job.b.right) / 2, y: job.a.top + job.a.height / 2 - job.a.height * 1.35, at: MELD_MS * MEET_AT };
+    },
     shards(chips, delay) {
       setTimeout(() => {
         const b = canvas.getBoundingClientRect();
@@ -443,20 +639,19 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
         );
       }, delay);
     },
-    follow(el, ms, delay = 0) {
-      const box = () => canvas.getBoundingClientRect();
+    follow(path, ms, delay = 0) {
+      const b = canvas.getBoundingClientRect();
       const end = performance.now() + delay + ms;
       const start = performance.now() + delay;
       const step = (now: number) => {
-        if (now > end || !el.isConnected) return;
+        if (now > end) return;
         if (now >= start) {
-          const r = el.getBoundingClientRect();
-          const b = box();
+          const [x, y, w, h] = path((now - start) / ms);
           const more: Bit[] = [];
           for (let k = 0; k < 2; k++)
             more.push({
-              x: r.left + r.width / 2 - b.left + rand(-r.width * 0.3, r.width * 0.3),
-              y: r.top + r.height / 2 - b.top + rand(-r.height * 0.3, r.height * 0.3),
+              x: x - b.left + rand(-w * 0.3, w * 0.3),
+              y: y - b.top + rand(-h * 0.3, h * 0.3),
               vx: rand(-30, 30),
               vy: rand(-40, 10),
               turn: rand(0, 6),
@@ -495,6 +690,7 @@ export function createFx(canvas: HTMLCanvasElement): Fx | null {
     },
     clear() {
       bits = [];
+      jobs = [];
     },
   };
 }

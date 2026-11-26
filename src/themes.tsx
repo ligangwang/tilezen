@@ -331,8 +331,8 @@ export function faceImage(theme: ThemeId, face: number): string {
  * lays tiles out (board-view.tsx); the picture runs past the tile to the
  * right and below, for the shadow (TILE_PICTURE).
  */
-export function tileImage(theme: Theme, face: number, raised: boolean): string {
-  const key = `tile:${theme.id}:${face}:${raised ? 1 : 0}`;
+export function tileImage(theme: Theme, face: number): string {
+  const key = `tile:${theme.id}:${face}`;
   let pic = pictures.get(key);
   if (pic) return pic;
   const FW = 84;
@@ -349,7 +349,7 @@ export function tileImage(theme: Theme, face: number, raised: boolean): string {
   const layers: string[] = [];
   for (let t = D; t > D * 0.5; t -= 1) layers.push(rect(t, t, "url(#b)"));
   for (let t = D * 0.5; t > 0; t -= 0.75) layers.push(rect(t, t, "url(#e)"));
-  const shadow = raised ? { dx: 5, dy: 8, blur: 5, alpha: 0.5 } : { dx: 4, dy: 6, blur: 4, alpha: 0.4 };
+  const shadow = { dx: 5, dy: 7, blur: 4.5, alpha: 0.45 };
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${TILE_PICTURE.w} ${TILE_PICTURE.h}"><defs>${CARVE}
 <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="${shadow.blur}"/></filter>
 ${split("b", mix(theme.back, "#000000", 0.32), mix(theme.back, "#000000", 0.06))}
@@ -377,7 +377,7 @@ ${rect(0, 0, "none", ` stroke="#54401a" stroke-opacity="0.45" stroke-width="0.9"
  * redrawn, but only copies a bitmap. Resolves to the vector picture itself
  * where a bitmap can't be made.
  */
-export function bitmap(svg: string, width: number, height: number): Promise<string> {
+export function bitmap(svg: string, width = BITMAP_W, height = (BITMAP_W * TILE_PICTURE.h) / TILE_PICTURE.w): Promise<string> {
   const key = `${Math.round(width)}x${Math.round(height)}:${svg}`;
   let made = bitmaps.get(key);
   if (!made) {
@@ -390,7 +390,12 @@ export function bitmap(svg: string, width: number, height: number): Promise<stri
           canvas.width = Math.max(1, Math.round(width));
           canvas.height = Math.max(1, Math.round(height));
           canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-          canvas.toBlob((blob) => resolve(blob ? URL.createObjectURL(blob) : svg), "image/png");
+          drawnCanvas.set(svg, canvas);
+          canvas.toBlob((blob) => {
+            const made = blob ? URL.createObjectURL(blob) : svg;
+            if (blob) drawnUrl.set(svg, made);
+            resolve(made);
+          }, "image/png");
         } catch {
           resolve(svg);
         }
@@ -403,6 +408,35 @@ export function bitmap(svg: string, width: number, height: number): Promise<stri
   return made;
 }
 const bitmaps = new Map<string, Promise<string>>();
+const drawnCanvas = new Map<string, HTMLCanvasElement>();
+const drawnUrl = new Map<string, string>();
+/** A bitmap already made of a picture, at whatever size, if there is one. */
+export const madeBitmap = (svg: string) => drawnUrl.get(svg) ?? null;
+/** The bitmap last made of a picture, as a canvas to draw from, if one has been made. */
+export const drawnTile = (svg: string) => drawnCanvas.get(svg) ?? null;
+
+/**
+ * How wide every tile bitmap is, in pixels: one size for every board, so a
+ * theme's bitmaps are made once, ahead of play, and serve every level
+ * (sharp enough for a large tile on a phone's screen).
+ */
+export const BITMAP_W = 260;
+
+/**
+ * Makes the bitmaps of a theme's tiles ahead of play, one at a time in
+ * quiet moments, so a new board doesn't have to make them while the
+ * player is already picking tiles.
+ */
+export function prepareTiles(theme: Theme, faces: number) {
+  const idle = (globalThis as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+  const later = (f: () => void) => (idle ? idle(f, { timeout: 2000 }) : setTimeout(f, 50));
+  let face = 0;
+  const next = () => {
+    if (face >= faces) return;
+    void bitmap(tileImage(theme, face++)).then(() => later(next));
+  };
+  later(next);
+}
 
 /** How big a tile's picture is, in the units where the tile is 100 x 136. */
 export const TILE_PICTURE = { w: 112, h: 150 };
