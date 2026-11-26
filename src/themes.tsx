@@ -277,11 +277,19 @@ function picture(theme: Exclude<ThemeId, "classic">, suit: number, n: number) {
 
 /** The drawing on one tile, in a 62 × 84 box. */
 export function faceArt(theme: ThemeId, face: number): ReactNode {
-  const suit = Math.floor(face / 9);
-  const n = (face % 9) + 1;
-  const art = theme === "classic" ? [dots, sticks, numeral, honour][suit](n) : picture(theme, suit, n);
-  return <g filter="url(#tz-carve)">{art}</g>;
+  // Drawn once and kept: handing React the very same drawing again lets it
+  // skip the tile's whole picture when the board changes.
+  const key = `${theme}:${face}`;
+  let art = drawn.get(key);
+  if (!art) {
+    const suit = Math.floor(face / 9);
+    const n = (face % 9) + 1;
+    art = <g filter="url(#tz-carve)">{theme === "classic" ? [dots, sticks, numeral, honour][suit](n) : picture(theme, suit, n)}</g>;
+    drawn.set(key, art);
+  }
+  return art;
 }
+const drawn = new Map<string, ReactNode>();
 
 /**
  * What the tile drawings share, to put on the page once: the filter that

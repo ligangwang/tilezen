@@ -1,7 +1,7 @@
 // The board on screen: one button per tile, stacked in layers. Tiles are
 // sized to fit the space; with large tiles on they keep a bigger size and
 // the board scrolls instead.
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import type { Session } from "./engine/session";
 import { isFree } from "./engine/board";
 import { faceArt, faceLabel, type Theme } from "./themes";
@@ -26,6 +26,11 @@ type Props = {
 
 export function BoardView(props: Props) {
   const { session, theme, hint, shake, large, onTile } = props;
+  // One handler for every tile that keeps its identity, so a tile that
+  // didn't change isn't drawn again (Tile is memoised).
+  const latest = useRef(onTile);
+  latest.current = onTile;
+  const [tap] = useState(() => (i: number) => latest.current(i));
   const { t } = useLocale();
   const box = useRef<HTMLDivElement>(null);
   const [space, setSpace] = useState({ w: 360, h: 480 });
@@ -99,34 +104,67 @@ export function BoardView(props: Props) {
           ]
             .filter(Boolean)
             .join(" ");
+          const { left, top } = at(i);
           return (
-            <button
+            <Tile
               key={i}
-              type="button"
-              data-tile={i}
-              className={cls}
-              aria-label={label(session.faces[i]) + (open ? "" : `, ${t("blocked")}`)}
-              onClick={() => onTile(i)}
-              style={{
-                ...at(i),
-                width: w,
-                height: h,
-                zIndex: s.z * 10 + 1,
-                ["--n" as string]: n,
-                ["--d" as string]: `${d}px`,
-                ["--r" as string]: `${(w * 0.12).toFixed(1)}px`,
-              }}
-            >
-              <span className="side" />
-              <span className="face">
-                <svg viewBox="0 0 62 84" aria-hidden="true">
-                  {faceArt(theme.id, session.faces[i])}
-                </svg>
-              </span>
-            </button>
+              i={i}
+              cls={cls}
+              label={label(session.faces[i]) + (open ? "" : `, ${t("blocked")}`)}
+              theme={theme.id}
+              face={session.faces[i]}
+              left={left}
+              top={top}
+              w={w}
+              h={h}
+              d={d}
+              z={s.z}
+              n={n}
+              onTile={tap}
+            />
           );
         })}
       </div>
     </div>
   );
 }
+
+type TileProps = {
+  i: number;
+  cls: string;
+  label: string;
+  theme: Theme["id"];
+  face: number;
+  left: number;
+  top: number;
+  w: number;
+  h: number;
+  d: number;
+  z: number;
+  n: number;
+  onTile: (i: number) => void;
+};
+
+/** One tile on the board, drawn again only when something about it changes. */
+const Tile = memo(function Tile({ i, cls, label, theme, face, left, top, w, h, d, z, n, onTile }: TileProps) {
+  const style: CSSProperties & Record<string, string | number> = {
+    left,
+    top,
+    width: w,
+    height: h,
+    zIndex: z * 10 + 1,
+    "--n": n,
+    "--d": `${d}px`,
+    "--r": `${(w * 0.12).toFixed(1)}px`,
+  };
+  return (
+    <button type="button" data-tile={i} className={cls} aria-label={label} onClick={() => onTile(i)} style={style}>
+      <span className="side" />
+      <span className="face">
+        <svg viewBox="0 0 62 84" aria-hidden="true">
+          {faceArt(theme, face)}
+        </svg>
+      </span>
+    </button>
+  );
+});
