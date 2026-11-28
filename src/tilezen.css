@@ -30,6 +30,12 @@ body {
   --display: "AppleMyungjo", "Nanum Myeongjo", "Noto Serif CJK KR", "Noto Serif KR", Batang, serif;
   font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans CJK KR", "Noto Sans KR", sans-serif;
 }
+/* Traditional Chinese in Taiwan's faces. Thai and Hindi need no rule: the
+   stacks end in a generic family, which falls back to a face that has them. */
+:lang(zh-TW) body {
+  --display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Songti TC", "Noto Serif CJK TC", "Noto Serif TC", "Source Han Serif TC", PMingLiU, serif;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang TC", "Noto Sans TC", "Noto Sans CJK TC", "Microsoft JhengHei", Arial, sans-serif;
+}
 button {
   font: inherit;
   cursor: pointer;

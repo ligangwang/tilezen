@@ -38,7 +38,7 @@ test("every string the game shows has a translation with the same placeholders",
 });
 
 test("the game speaks every language dingn has", () => {
-  assert.deepEqual([...LANGUAGES].sort(), ["en", "es", "id", "ja", "ko", "pt-BR", "zh-CN"]);
+  assert.deepEqual([...LANGUAGES].sort(), ["de", "en", "es", "fil", "fr", "hi", "id", "ja", "ko", "ms", "pt-BR", "th", "vi", "zh-CN", "zh-TW"]);
   // game.json names the game, describes it and titles each badge in all of
   // them (Chinese under "zh", as dingn's listings have it).
   const fields = LANGUAGES.map((l) => (l === "zh-CN" ? "zh" : l));
@@ -57,5 +57,22 @@ test("translate fills patterns and falls back to English", () => {
   assert.equal(translate("Hint", "es"), "Pista");
   assert.equal(translate("Level 12", "ja"), "レベル 12");
   assert.equal(translate("Place 2 of 9", "ko"), "9명 중 2위");
-  assert.equal(translate("Hint", "fr"), "Hint");
+  assert.equal(translate("Hint", "zh-TW"), "提示");
+  assert.equal(translate("Level 12", "zh-TW"), "第 12 關");
+  assert.equal(translate("Level 12", "th"), "เลเวล 12");
+  assert.equal(translate("Level 12", "ms"), "Tahap 12");
+  assert.equal(translate("Place 2 of 9", "hi"), "9 में से 2वाँ स्थान");
+  assert.equal(translate("Score to beat: 40", "fr"), "Score à battre\u00a0: 40");
+  assert.equal(translate("Hint", "it"), "Hint");
+});
+
+test("each new script's pack is written in it", () => {
+  const values = (locale: string) => Object.entries(PACKS[locale]).filter(([en]) => en !== "Tile Zen").map(([, v]) => v);
+  for (const v of values("th")) assert.match(v, /[\u0E00-\u0E7F]/, `th: ${v}`);
+  for (const v of values("hi")) assert.match(v, /[\u0900-\u097F]/, `hi: ${v}`);
+  // Traditional Chinese, not the Simplified pack's characters.
+  for (const v of values("zh-TW")) {
+    assert.match(v, /\p{Script=Han}/u, `zh-TW: ${v}`);
+    assert.doesNotMatch(v, /[关设录张东发条万盘战绩链复图选这续轮页]/, `zh-TW: ${v}`);
+  }
 });

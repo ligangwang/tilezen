@@ -68,8 +68,9 @@ back.
   signed-out players too.
 - **Sign in**: levels 1 to 5 are open to everyone; level 6 and on need a free
   dingn account (dingn's own sign-in).
-- Every dingn language: English, Chinese, Spanish, Brazilian Portuguese,
-  Indonesian, Japanese and Korean (`src/locales/`).
+- Every dingn language: English, Simplified and Traditional Chinese, Spanish,
+  Brazilian Portuguese, Indonesian, Japanese, Korean, Thai, Malay, Filipino,
+  Hindi, Vietnamese, German and French (`src/locales/`).
 
 ## Coins and badges
 
