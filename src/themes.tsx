@@ -65,8 +65,10 @@ function dots(n: number) {
         return (
           <g key={i}>
             <circle cx={x} cy={y} r={r} fill={c} />
-            <circle cx={x} cy={y} r={r * 0.62} fill="#fff" />
+            <circle cx={x} cy={y} r={r * 0.86} fill="none" stroke="#fff" strokeOpacity="0.28" strokeWidth={r * 0.07} />
+            <circle cx={x} cy={y} r={r * 0.59} fill="#fffaf0" />
             <circle cx={x} cy={y} r={r * 0.34} fill={c} />
+            <circle cx={x} cy={y} r={r * 0.12} fill="#fff" fillOpacity="0.45" />
           </g>
         );
       })}
@@ -75,31 +77,38 @@ function dots(n: number) {
 }
 
 function sticks(n: number) {
-  const h = n <= 2 ? 22 : n <= 6 ? 18 : 13;
-  const w = n <= 4 ? 7 : 6;
-  if (n === 1)
+  if (n === 1) {
     return (
       <>
-        {/* A single tall reed with its leaves. */}
-        <g transform="translate(0 -5)">
-          <rect x="27" y="22" width="8" height="52" rx="4" fill={GREEN} />
-          <rect x="26" y="38" width="10" height="3" fill="#fff" />
-          <rect x="26" y="56" width="10" height="3" fill="#fff" />
-          <path d="M31 30 C 20 26 14 32 12 40 C 22 38 27 36 31 30 Z" fill="#2fa36b" />
-          <path d="M31 46 C 42 42 48 48 50 56 C 40 54 35 52 31 46 Z" fill="#2fa36b" />
-          <circle cx="31" cy="20" r="4" fill={RED} />
-        </g>
+        {/* A sparrow perched on a sprig of bamboo. */}
+        <path d="M13 66 Q28 62 48 63" fill="none" stroke={GREEN} strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M23 64 Q13 61 10 53 Q21 54 25 63 M37 63 Q40 55 51 53 Q48 61 40 63 M36 64 Q43 64 48 71 Q39 71 34 65" fill="#207b57" />
+        <path d="M30 56 L30 63 M37 56 L37 63" stroke="#8d592b" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M23 44 Q15 47 10 57 Q21 57 30 52 Z" fill="#124d42" />
+        <path d="M20 47 Q22 38 32 35 Q30 25 38 21 Q48 17 52 25 Q55 31 48 37 Q49 51 39 56 Q27 61 20 47 Z" fill={GREEN} />
+        <path d="M46 31 Q51 25 56 30 L50 33 Z" fill="#a04b27" />
+        <path d="M35 39 Q43 37 47 36 Q46 49 39 54 Q37 47 31 47 Z" fill="#d3ba76" />
+        <path d="M21 46 Q29 38 39 40 Q37 49 27 52 Z" fill="#145346" />
+        <path d="M25 46 Q31 43 35 43 M28 48 L33 46" fill="none" stroke="#94c39e" strokeWidth="1.25" strokeLinecap="round" />
+        <circle cx="46" cy="26.5" r="2.25" fill="#fff6d9" />
+        <circle cx="46.5" cy="26.5" r="1.1" fill={INK} />
       </>
     );
+  }
+  const height = n <= 4 ? 21 : n <= 6 ? 18 : 14;
+  const scale = n <= 6 ? 0.93 : 0.78;
   return (
     <>
       {PIPS[n].map((p, i) => {
         const [x, y] = at(p);
         const c = (n === 5 || n === 9) && i === 4 ? RED : n === 7 && i === 1 ? RED : GREEN;
         return (
-          <g key={i}>
-            <rect x={x - w / 2} y={y - h / 2} width={w} height={h} rx={w / 2} fill={c} />
-            <rect x={x - w / 2 - 0.5} y={y - 1} width={w + 1} height="2" fill="#fff" />
+          <g key={i} transform={`translate(${x} ${y}) scale(${scale} ${height / 20})`}>
+            <path d="M-3.9-8.3 Q0-10.6 3.9-8.3 Q2.5-1 3.8 7.9 Q0 10.4-3.8 7.9 Q-2.5-1-3.9-8.3Z" fill={c} />
+            <path d="M-2-6 Q-1-0.5-2 5.6" fill="none" stroke="#fff" strokeOpacity="0.44" strokeWidth="1.25" strokeLinecap="round" />
+            <path d="M-4 0.2 Q0 1.9 4 0.2" fill="none" stroke={c} strokeWidth="2.6" strokeLinecap="round" />
+            <path d="M-3.8-0.25 Q0 1.4 3.8-0.25" fill="none" stroke="#fff4ce" strokeOpacity="0.82" strokeWidth="1.25" strokeLinecap="round" />
+            <path d="M-2.7-8 Q0-9.2 2.7-8" fill="none" stroke="#fff" strokeOpacity="0.55" strokeWidth="0.9" strokeLinecap="round" />
           </g>
         );
       })}
@@ -354,17 +363,19 @@ export function tileImage(theme: Theme, face: number, raised: boolean): string {
 <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="${shadow.blur}"/></filter>
 ${split("b", mix(theme.back, "#000000", 0.32), mix(theme.back, "#000000", 0.06))}
 ${split("e", mix(theme.edge, "#6b4f22", 0.24), theme.edge)}
-<linearGradient id="f" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="0.38" stop-color="${theme.tile}"/><stop offset="1" stop-color="${mix(theme.tile, theme.edge, 0.55)}"/></linearGradient>
-<radialGradient id="g" cx="0.18" cy="0.06" r="0.75"><stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
-<linearGradient id="k" x1="0" y1="0" x2="1" y2="1"><stop offset="0.45" stop-color="#7a5c28" stop-opacity="0"/><stop offset="1" stop-color="#7a5c28" stop-opacity="0.45"/></linearGradient>
+<linearGradient id="f" x1="6%" y1="0%" x2="92%" y2="100%"><stop offset="0" stop-color="#ffffff"/><stop offset="0.42" stop-color="${theme.tile}"/><stop offset="1" stop-color="${mix(theme.tile, theme.edge, 0.63)}"/></linearGradient>
+<radialGradient id="g" cx="21%" cy="9%" r="72%"><stop offset="0" stop-color="#fff" stop-opacity="0.85"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+<linearGradient id="rim" x1="12%" y1="0%" x2="84%" y2="100%"><stop offset="0" stop-color="#fff"/><stop offset="0.49" stop-color="${theme.edge}" stop-opacity="0.55"/><stop offset="1" stop-color="${mix(theme.edge, "#54401a", 0.38)}"/></linearGradient>
+<linearGradient id="seam" x2="55%" y2="100%"><stop offset="0" stop-color="#fff" stop-opacity="0.12"/><stop offset="1" stop-color="#fff" stop-opacity="0.38"/></linearGradient>
 </defs>
 <rect x="${D + shadow.dx * 0.4}" y="${D + shadow.dy * 0.4}" width="${FW}" height="${FH}" rx="${R}" fill="#000" opacity="${shadow.alpha * 0.6}" filter="url(#s)"/>
 <rect x="${D + shadow.dx}" y="${D + shadow.dy}" width="${FW}" height="${FH}" rx="${R}" fill="#000" opacity="${shadow.alpha * 0.5}" filter="url(#s)"/>
 ${layers.join("")}
+${rect(D * 0.5, D * 0.5, "none", ' stroke="url(#seam)" stroke-width="1.1"')}
 ${rect(0, 0, "url(#f)")}${rect(0, 0, "url(#g)")}
-<rect x="1.1" y="1.1" width="${FW - 2.2}" height="${FH - 2.2}" rx="${R - 1}" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="1.6"/>
-<rect x="1.4" y="1.4" width="${FW - 2.8}" height="${FH - 2.8}" rx="${R - 1}" fill="none" stroke="url(#k)" stroke-width="2.4"/>
-${rect(0, 0, "none", ` stroke="#54401a" stroke-opacity="0.45" stroke-width="0.9"`)}
+<rect x="1.4" y="1.4" width="${FW - 2.8}" height="${FH - 2.8}" rx="${R - 1}" fill="none" stroke="url(#rim)" stroke-width="2.4"/>
+<rect x="3.3" y="3.3" width="${FW - 6.6}" height="${FH - 6.6}" rx="${R - 3}" fill="none" stroke="#fff" stroke-opacity="0.62" stroke-width="0.9"/>
+${rect(0, 0, "none", ' stroke="#54401a" stroke-opacity="0.42" stroke-width="0.9"')}
 <g transform="translate(0 ${((FH - 84 * (FW / 62)) / 2).toFixed(2)}) scale(${(FW / 62).toFixed(4)})"><g filter="url(#c)">${markup(art(theme.id, face))}</g></g>
 </svg>`;
   pic = url(svg);
