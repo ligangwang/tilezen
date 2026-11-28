@@ -190,10 +190,10 @@ h2 {
     radial-gradient(130% 95% at 18% 8%, #fff 0%, rgba(255, 255, 255, 0) 58%),
     linear-gradient(160deg, var(--tile) 30%, color-mix(in srgb, var(--tile), var(--edge) 55%) 100%);
   box-shadow:
-    inset 1.5px 1.5px 1.5px #fff,
-    inset -1.5px -2px 2.5px rgba(122, 92, 40, 0.42),
-    inset -4px -6px 9px rgba(140, 108, 52, 0.12),
-    inset 0 0 0 0.5px rgba(84, 60, 22, 0.4);
+    inset 1px 1px 1px #fff,
+    inset -1px -1.5px 1px color-mix(in srgb, var(--edge), #54401a 40%),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.46),
+    inset -4px -6px 9px rgba(140, 108, 52, 0.16);
   display: block;
   overflow: hidden;
 }
