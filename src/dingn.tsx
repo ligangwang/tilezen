@@ -28,6 +28,7 @@ export function DingnProvider({
   useEffect(() => sdk.onLanguage?.(setLocale), [sdk]);
   useEffect(() => {
     document.documentElement.lang = locale;
+    document.documentElement.dir = locale === "ar" || locale === "ur-PK" ? "rtl" : "ltr";
   }, [locale]);
   return (
     <DingnContext.Provider value={{ ...sdk, player, locale }}>

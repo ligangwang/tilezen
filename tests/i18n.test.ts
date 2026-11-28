@@ -38,7 +38,7 @@ test("every string the game shows has a translation with the same placeholders",
 });
 
 test("the game speaks every language dingn has", () => {
-  assert.deepEqual([...LANGUAGES].sort(), ["de", "en", "es", "fil", "fr", "hi", "id", "ja", "ko", "ms", "pt-BR", "th", "vi", "zh-CN", "zh-TW"]);
+  assert.deepEqual([...LANGUAGES].sort(), ["ar", "de", "en", "es", "fil", "fr", "hi", "id", "ja", "ko", "ms", "pt-BR", "th", "ur-PK", "vi", "zh-CN", "zh-TW"]);
   // game.json names the game, describes it and titles each badge in all of
   // them (Chinese under "zh", as dingn's listings have it).
   const fields = LANGUAGES.map((l) => (l === "zh-CN" ? "zh" : l));

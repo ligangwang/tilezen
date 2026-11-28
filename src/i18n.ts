@@ -9,14 +9,16 @@ import ptBR from "./locales/pt-BR.json";
 import id from "./locales/id.json";
 import ja from "./locales/ja.json";
 import ko from "./locales/ko.json";
-import zhTW from "./locales/zh-TW.json";
-import th from "./locales/th.json";
-import ms from "./locales/ms.json";
-import fil from "./locales/fil.json";
-import hi from "./locales/hi.json";
-import vi from "./locales/vi.json";
+import ar from "./locales/ar.json";
 import de from "./locales/de.json";
+import fil from "./locales/fil.json";
 import fr from "./locales/fr.json";
+import hi from "./locales/hi.json";
+import ms from "./locales/ms.json";
+import th from "./locales/th.json";
+import urPK from "./locales/ur-PK.json";
+import vi from "./locales/vi.json";
+import zhTW from "./locales/zh-TW.json";
 import type { Locale } from "../sdk/dingn-sdk.js";
 
 /** Each language's pack, by dingn's language code. English needs none. */
@@ -27,14 +29,16 @@ export const PACKS: Record<string, Record<string, string>> = {
   id,
   ja,
   ko,
-  "zh-TW": zhTW,
-  th,
-  ms,
-  fil,
-  hi,
-  vi,
+  ar,
   de,
+  fil,
   fr,
+  hi,
+  ms,
+  th,
+  "ur-PK": urPK,
+  vi,
+  "zh-TW": zhTW,
 };
 
 /** Every language Tile Zen speaks, English first (game.json `languages`). */
