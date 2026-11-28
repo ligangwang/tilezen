@@ -21,12 +21,12 @@ Notes for AI coding agents working on Tile Zen (静心麻将).
   dingn.com there; never ask for it in chat or write it down.
 - Save with `sdk.storage` / `sdk.progress`, never `localStorage` or cookies,
   which the sandbox blocks. Keep every URL relative (`base: "./"`).
-- The game speaks every dingn language: English, zh-CN, es, pt-BR, id, ja
-  and ko. UI strings go through `t()` in English, with a translation in
+- The game speaks every language in `game.json`. UI strings go through
+  `t()` in English, with a translation in
   every `src/locales/<lang>.json` (a test checks each shown string has one,
   with the same `{0}` placeholders). Layout names are translated the same
   way. `game.json` carries the title, description and badge titles in each
-  language too (Chinese under `zh`). A new string needs all six.
+  language too (Simplified Chinese under `zh`). A new string needs every pack.
 - `src/engine/` is the rules. Keep it free of the DOM so the tests run it in
   Node, and deterministic (the seeded generator in `random.ts`), so a level
   and the daily puzzle deal the same board for everyone.

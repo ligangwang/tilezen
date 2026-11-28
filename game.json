@@ -1,6 +1,6 @@
 {
   "id": "tilezen",
-  "version": "1.3.8",
+  "version": "1.4.0",
   "title": {
     "en": "Tile Zen",
     "zh": "静心麻将",
@@ -8,7 +8,17 @@
     "pt-BR": "Tile Zen",
     "id": "Tile Zen",
     "ja": "タイルゼン",
-    "ko": "타일 젠"
+    "ko": "타일 젠",
+    "ar": "Tile Zen",
+    "de": "Tile Zen",
+    "fil": "Tile Zen",
+    "fr": "Tile Zen",
+    "hi": "Tile Zen",
+    "ms": "Tile Zen",
+    "th": "Tile Zen",
+    "ur-PK": "Tile Zen",
+    "vi": "Tile Zen",
+    "zh-TW": "靜心麻將"
   },
   "description": {
     "en": "Calm tile-matching solitaire with real-looking tiles: lift tiles into a tray of four and match their twins to clear the board. Every deal can be cleared, hints, undo and shuffle are free, and there is a score to beat, challenges for friends, a daily puzzle and new layouts and tile themes as you go.",
@@ -17,7 +27,17 @@
     "pt-BR": "Paciência serena de peças com aparência real: leve peças a uma bandeja de quatro e combine os pares para limpar o tabuleiro. Toda partida tem solução, e dicas, desfazer e embaralhar são grátis. Com pontuação, desafios para amigos, um desafio diário e novos layouts e temas pelo caminho.",
     "id": "Solitaire ubin yang tenang dengan ubin tampak nyata: angkat ubin ke baki berisi empat dan cocokkan kembarannya untuk membersihkan papan. Setiap papan pasti bisa selesai, petunjuk, urungkan, dan acak gratis. Ada skor, tantangan untuk teman, teka-teki harian, serta tata letak dan tema baru.",
     "ja": "本物のような牌で遊ぶ、落ち着いた牌合わせソリティア。牌を四枚入りのトレイに上げ、同じ牌とペアにして盤面をクリアします。どの盤面も必ずクリアでき、ヒント・戻す・シャッフルは無料。スコア、友だちへのチャレンジ、今日の一局があり、進むほど新しい配置と牌のテーマが開きます。",
-    "ko": "진짜 같은 패로 즐기는 차분한 패 맞추기 솔리테어. 패를 네 칸 트레이에 올리고 같은 패와 짝지어 판을 비우세요. 모든 판은 반드시 풀 수 있고 힌트, 되돌리기, 섞기는 무료입니다. 점수, 친구에게 보내는 도전, 오늘의 퍼즐이 있고, 진행할수록 새 배치와 패 테마가 열립니다."
+    "ko": "진짜 같은 패로 즐기는 차분한 패 맞추기 솔리테어. 패를 네 칸 트레이에 올리고 같은 패와 짝지어 판을 비우세요. 모든 판은 반드시 풀 수 있고 힌트, 되돌리기, 섞기는 무료입니다. 점수, 친구에게 보내는 도전, 오늘의 퍼즐이 있고, 진행할수록 새 배치와 패 테마가 열립니다.",
+    "ar": "لعبة هادئة لمطابقة القطع. ضع القطع في صينية تتسع لأربع، وطابق القطع المتماثلة حتى تفرغ اللوحة. كل لوحة قابلة للحل، والتلميحات والتراجع والخلط مجانية. تحدَّ نتيجتك أو أصدقاءك، والعب لغز اليوم وافتح تشكيلات وسمات جديدة.",
+    "de": "Entspanntes Solitär mit realistischen Spielsteinen. Lege sie in eine Ablage mit vier Plätzen und räume das Feld paarweise ab. Jedes Feld ist lösbar. Tipps, Rückgängig und Mischen sind gratis. Dazu gibt es Bestwerte, Freundesduelle, ein Tagesrätsel und neue Anordnungen und Designs.",
+    "fil": "Relax na solitaire. Ilagay ang mga tile sa tray na may apat na puwesto at pagtambalin ang magkakapareho. Malulutas ang bawat board. Libre ang pahiwatig, pagbawi at pagbalasa. Higitan ang rekord, hamunin ang kaibigan, lutasin ang arawang palaisipan at magbukas ng bagong layout at tema.",
+    "fr": "Un solitaire de tuiles relaxant. Placez les tuiles dans un plateau de quatre places et associez-les par paires. Chaque grille est soluble. Indices, annulation et mélange sont gratuits. Battez votre record, défiez vos amis et débloquez des thèmes et des grilles. Un défi vous attend chaque jour.",
+    "hi": "आराम से खेला जाने वाला टाइल मिलान। चार जगह वाली ट्रे में टाइलें रखें और एक जैसी टाइलों के जोड़े बनाकर बोर्ड साफ़ करें। हर बोर्ड हल हो सकता है। संकेत, चाल वापस लेने और फेरने की सुविधा मुफ़्त है। अपना रिकॉर्ड तोड़ें, दोस्तों को चुनौती दें और नए लेआउट व थीम खोलें।",
+    "ms": "Solitaire padanan jubin yang santai. Letakkan jubin di dulang empat ruang dan padankan jubin seiras. Setiap papan boleh diselesaikan. Petunjuk, buat asal dan kocok adalah percuma. Atasi rekod, cabar rakan, main teka-teki harian dan buka susun atur serta tema baharu.",
+    "th": "เกมจับคู่ไพ่เล่นคนเดียวสบาย ๆ ย้ายไพ่ลงถาดสี่ช่องแล้วจับคู่ให้หมดกระดาน ทุกกระดานแก้ได้ ใช้คำใบ้ ย้อนตา และสับไพ่ฟรี ทำลายสถิติ ท้าเพื่อน เล่นปริศนาประจำวัน และปลดล็อกรูปแบบกับธีมใหม่",
+    "ur-PK": "آرام سے ٹائلیں ملانے کا کھیل۔ ٹائلیں چار خانوں والی ٹرے میں رکھیں اور جوڑے بنا کر تختہ خالی کریں۔ ہر تختہ حل ہو سکتا ہے۔ اشارے، پچھلی چال اور ٹائلیں پھینٹنا مفت ہیں۔ اپنا ریکارڈ توڑیں، دوستوں کو چیلنج کریں، روزانہ کی پہیلی کھیلیں اور نئے نقشے اور تھیم کھولیں۔",
+    "vi": "Trò ghép ô thư giãn. Đưa ô vào khay bốn chỗ rồi ghép từng cặp để dọn bàn. Mọi bàn đều có lời giải. Gợi ý, hoàn tác và xáo ô đều miễn phí. Vượt kỷ lục, thách đấu bạn bè, giải câu đố hằng ngày và mở khóa bố cục, chủ đề mới.",
+    "zh-TW": "輕鬆的單人配對遊戲。把牌放進四格牌槽，配對相同的牌來清空牌桌。每個牌局都有解，提示、復原與洗牌都免費。還能突破紀錄、挑戰好友、解每日一局，並解鎖新牌陣和主題。"
   },
   "languages": [
     "en",
@@ -26,7 +46,17 @@
     "pt-BR",
     "id",
     "ja",
-    "ko"
+    "ko",
+    "ar",
+    "de",
+    "fil",
+    "fr",
+    "hi",
+    "ms",
+    "th",
+    "ur-PK",
+    "vi",
+    "zh-TW"
   ],
   "category": "casual",
   "entry": "index.html",
@@ -43,7 +73,17 @@
         "pt-BR": "Conclua o nível 5",
         "id": "Selesaikan level 5",
         "ja": "レベル 5 をクリア",
-        "ko": "레벨 5 클리어"
+        "ko": "레벨 5 클리어",
+        "ar": "مستوى واضح 5",
+        "de": "Schaffe Level 5",
+        "fil": "I-clear ang level 5",
+        "fr": "Réussis le niveau 5",
+        "hi": "लेवल 5 पार करें",
+        "ms": "Tamatkan tahap 5",
+        "th": "ผ่านเลเวล 5",
+        "ur-PK": "واضح سطح 5",
+        "vi": "Qua cấp 5",
+        "zh-TW": "通過第 5 關"
       }
     },
     {
@@ -57,7 +97,17 @@
         "pt-BR": "Conclua o nível 10",
         "id": "Selesaikan level 10",
         "ja": "レベル 10 をクリア",
-        "ko": "레벨 10 클리어"
+        "ko": "레벨 10 클리어",
+        "ar": "مستوى واضح 10",
+        "de": "Schaffe Level 10",
+        "fil": "I-clear ang level 10",
+        "fr": "Réussis le niveau 10",
+        "hi": "लेवल 10 पार करें",
+        "ms": "Tamatkan tahap 10",
+        "th": "ผ่านเลเวล 10",
+        "ur-PK": "واضح سطح 10",
+        "vi": "Qua cấp 10",
+        "zh-TW": "通過第 10 關"
       }
     },
     {
@@ -71,7 +121,17 @@
         "pt-BR": "Conclua o nível 25",
         "id": "Selesaikan level 25",
         "ja": "レベル 25 をクリア",
-        "ko": "레벨 25 클리어"
+        "ko": "레벨 25 클리어",
+        "ar": "مستوى واضح 25",
+        "de": "Schaffe Level 25",
+        "fil": "I-clear ang level 25",
+        "fr": "Réussis le niveau 25",
+        "hi": "लेवल 25 पार करें",
+        "ms": "Tamatkan tahap 25",
+        "th": "ผ่านเลเวล 25",
+        "ur-PK": "واضح سطح 25",
+        "vi": "Qua cấp 25",
+        "zh-TW": "通過第 25 關"
       }
     },
     {
@@ -85,7 +145,17 @@
         "pt-BR": "Conclua o nível 50",
         "id": "Selesaikan level 50",
         "ja": "レベル 50 をクリア",
-        "ko": "레벨 50 클리어"
+        "ko": "레벨 50 클리어",
+        "ar": "مستوى واضح 50",
+        "de": "Schaffe Level 50",
+        "fil": "I-clear ang level 50",
+        "fr": "Réussis le niveau 50",
+        "hi": "लेवल 50 पार करें",
+        "ms": "Tamatkan tahap 50",
+        "th": "ผ่านเลเวล 50",
+        "ur-PK": "50 کے درجے",
+        "vi": "Qua cấp 50",
+        "zh-TW": "通過第 50 關"
       }
     },
     {
@@ -99,7 +169,17 @@
         "pt-BR": "Conclua o nível 100",
         "id": "Selesaikan level 100",
         "ja": "レベル 100 をクリア",
-        "ko": "레벨 100 클리어"
+        "ko": "레벨 100 클리어",
+        "ar": "مستوى واضح 100",
+        "de": "Schaffe Level 100",
+        "fil": "I-clear ang level 100",
+        "fr": "Réussis le niveau 100",
+        "hi": "लेवल 100 पार करें",
+        "ms": "Tamatkan tahap 100",
+        "th": "ผ่านเลเวล 100",
+        "ur-PK": "100 سے زیادہ سطح",
+        "vi": "Qua cấp 100",
+        "zh-TW": "通過第 100 關"
       }
     },
     {
@@ -113,7 +193,17 @@
         "pt-BR": "Conclua o nível 250",
         "id": "Selesaikan level 250",
         "ja": "レベル 250 をクリア",
-        "ko": "레벨 250 클리어"
+        "ko": "레벨 250 클리어",
+        "ar": "مستوى واضح 250",
+        "de": "Schaffe Level 250",
+        "fil": "I-clear ang level 250",
+        "fr": "Réussis le niveau 250",
+        "hi": "लेवल 250 पार करें",
+        "ms": "Tamatkan tahap 250",
+        "th": "ผ่านเลเวล 250",
+        "ur-PK": "صاف سطح 250",
+        "vi": "Qua cấp 250",
+        "zh-TW": "通過第 250 關"
       }
     },
     {
@@ -127,7 +217,17 @@
         "pt-BR": "Limpe um tabuleiro sem dicas, sem desfazer e sem embaralhar",
         "id": "Bersihkan papan tanpa petunjuk, urungkan, atau acak",
         "ja": "ヒント・戻す・シャッフルなしで盤面をクリア",
-        "ko": "힌트, 되돌리기, 섞기 없이 판 비우기"
+        "ko": "힌트, 되돌리기, 섞기 없이 판 비우기",
+        "ar": "إزالة لوحة بدون علامات أو ألواح أو شفرات",
+        "de": "Leere ein Brett ohne Tipps, Rückgängig oder Mischen",
+        "fil": "Mag-clear ng board nang walang hint, undo o shuffle",
+        "fr": "Vide un plateau sans indice, annulation ni mélange",
+        "hi": "बिना संकेत, पूर्ववत या शफ़ल के एक बोर्ड साफ़ करें",
+        "ms": "Kosongkan papan tanpa petunjuk, buat asal atau kocok",
+        "th": "เคลียร์กระดานโดยไม่ใช้คำใบ้ ย้อนกลับ หรือสับไพ่",
+        "ur-PK": "ایک ٹکڑے ٹکڑے، کوئی ہدایت یا شفے کے بغیر صاف کریں",
+        "vi": "Phá một bàn không dùng gợi ý, hoàn tác hay xáo bài",
+        "zh-TW": "不用提示、復原和洗牌消完一局"
       }
     },
     {
@@ -141,7 +241,17 @@
         "pt-BR": "Limpe 25 tabuleiros sem ajuda",
         "id": "Bersihkan 25 papan tanpa bantuan",
         "ja": "ヘルプなしで 25 回クリア",
-        "ko": "도움 없이 25판 비우기"
+        "ko": "도움 없이 25판 비우기",
+        "ar": "25 لوحة مع عدم المساعدة",
+        "de": "Leere 25 Bretter ohne Hilfe",
+        "fil": "Mag-clear ng 25 board nang walang tulong",
+        "fr": "Vide 25 plateaux sans aide",
+        "hi": "बिना मदद के 25 बोर्ड साफ़ करें",
+        "ms": "Kosongkan 25 papan tanpa bantuan",
+        "th": "เคลียร์ 25 กระดานโดยไม่ใช้ตัวช่วย",
+        "ur-PK": "25 فائلوں کو کوئی مدد نہیں",
+        "vi": "Phá 25 bàn không cần trợ giúp",
+        "zh-TW": "不靠幫助消完 25 局"
       }
     },
     {
@@ -155,7 +265,17 @@
         "pt-BR": "Limpe um tabuleiro de 100 peças ou mais",
         "id": "Bersihkan papan berisi 100 ubin atau lebih",
         "ja": "100 枚以上の盤面をクリア",
-        "ko": "패 100개 이상의 판 비우기"
+        "ko": "패 100개 이상의 판 비우기",
+        "ar": "إزالة لوحة من 100 أو أكثر",
+        "de": "Leere ein Brett mit 100 oder mehr Steinen",
+        "fil": "Mag-clear ng board na may 100 tile o higit pa",
+        "fr": "Vide un plateau de 100 tuiles ou plus",
+        "hi": "100 या ज़्यादा टाइलों वाला बोर्ड साफ़ करें",
+        "ms": "Kosongkan papan dengan 100 jubin atau lebih",
+        "th": "เคลียร์กระดานที่มีไพ่ 100 ใบขึ้นไป",
+        "ur-PK": "100 یا اس سے زیادہ ٹیبل کی ایک بورڈ کو صاف کریں",
+        "vi": "Phá một bàn có từ 100 quân trở lên",
+        "zh-TW": "消完一局 100 張以上的牌"
       }
     },
     {
@@ -169,7 +289,17 @@
         "pt-BR": "Termine um desafio diário",
         "id": "Selesaikan satu teka-teki harian",
         "ja": "今日の一局を 1 回クリア",
-        "ko": "오늘의 퍼즐 한 번 완료"
+        "ko": "오늘의 퍼즐 한 번 완료",
+        "ar": "إكمال لعبة يومية",
+        "de": "Löse ein Tagesrätsel",
+        "fil": "Tapusin ang isang puzzle ng araw",
+        "fr": "Termine une énigme du jour",
+        "hi": "एक दैनिक पहेली पूरी करें",
+        "ms": "Selesaikan satu teka-teki harian",
+        "th": "เล่นปริศนาประจำวันจบ 1 ครั้ง",
+        "ur-PK": "روزانہ ایک پازل ختم کریں",
+        "vi": "Hoàn thành một câu đố hằng ngày",
+        "zh-TW": "完成一次每日一局"
       }
     },
     {
@@ -183,7 +313,17 @@
         "pt-BR": "Termine 7 desafios diários",
         "id": "Selesaikan 7 teka-teki harian",
         "ja": "今日の一局を 7 回クリア",
-        "ko": "오늘의 퍼즐 7번 완료"
+        "ko": "오늘의 퍼즐 7번 완료",
+        "ar": "7 ألغاز يومية",
+        "de": "Löse 7 Tagesrätsel",
+        "fil": "Tapusin ang 7 puzzle ng araw",
+        "fr": "Termine 7 énigmes du jour",
+        "hi": "7 दैनिक पहेलियाँ पूरी करें",
+        "ms": "Selesaikan 7 teka-teki harian",
+        "th": "เล่นปริศนาประจำวันจบ 7 ครั้ง",
+        "ur-PK": "7 روزانہ پازل ختم کریں",
+        "vi": "Hoàn thành 7 câu đố hằng ngày",
+        "zh-TW": "完成 7 次每日一局"
       }
     }
   ]

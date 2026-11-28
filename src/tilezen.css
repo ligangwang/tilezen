@@ -30,6 +30,11 @@ body {
   --display: "AppleMyungjo", "Nanum Myeongjo", "Noto Serif CJK KR", "Noto Serif KR", Batang, serif;
   font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans CJK KR", "Noto Sans KR", sans-serif;
 }
+/* Traditional Chinese uses Taiwan's regional typefaces. */
+:lang(zh-TW) body {
+  --display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Songti TC", "Noto Serif CJK TC", "Noto Serif TC", "Source Han Serif TC", PMingLiU, serif;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "PingFang TC", "Noto Sans TC", "Noto Sans CJK TC", "Microsoft JhengHei", Arial, sans-serif;
+}
 button {
   font: inherit;
   cursor: pointer;
@@ -349,7 +354,7 @@ h2 {
 }
 .how {
   margin-top: 8px;
-  text-align: left;
+  text-align: start;
   font-size: 16px;
   border-radius: 14px;
   padding: 6px 12px;
@@ -786,6 +791,7 @@ h2 {
 /* The tray: a dark wooden rack with a hollow for each tile, holding the
    tiles picked whose twins are still to come. */
 .tray {
+  direction: ltr;
   position: relative;
   --tw: 50px;
   --th: 68px;
@@ -1208,7 +1214,7 @@ h2 {
   color: #5433b5;
 }
 .settings {
-  text-align: left;
+  text-align: start;
 }
 .settings h2 {
   text-align: center;
